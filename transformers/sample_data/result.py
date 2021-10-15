@@ -1,12 +1,12 @@
 user = {
-    'first_name': 'John',
-    'last_name': 'Doe',
-    'other_name': '',
-    'soo': 'Rivers',
+    'first_name': '',
+    'last_name': 'N/A',
+    'other_names': '',
+    'state': 'N/A',
     'mat_no': 'U2015/3025000',
     'sex': 'M',
-    'marital': 'Single',
-    'department': 'MEG'
+    'marital_status': 'Single',
+    'department': ''
 }
 
 result = [
