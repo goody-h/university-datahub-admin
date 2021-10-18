@@ -20,6 +20,18 @@ class TableMapper(object):
     def __modify_row__(self, row):
         pass
 
+    def __post_header_call__(self):
+        pass
+    
+    def __pre_sheet_call__(self):
+        pass
+
+    def __post_sheet_call__(self):
+        pass
+
+    def __is_valid_header__(self):
+        return True
+
     def is_Anchor(self, value):
         return re.search(self.table_anchor, str(value).lower()) != None
 
@@ -58,16 +70,20 @@ class TableMapper(object):
             cell = self.ws.cell(row, c).value
             if re.search(pattern, str(cell).strip()) != None:
                 return cell
+        return None
 
     def _parse_sheet(self):
+        self.__pre_sheet_call__()
         self._parse_header()
-        if self.anchor != None:
+        self.__post_header_call__()
+        if self.anchor != None and self.__is_valid_header__():
             self._go_left()
             self._go_right()
             self._go_down()
             self._map_Headers()
             if self._has_rows():
                 self._get_rows()
+        self.__post_sheet_call__()
 
     def _get_rows(self):
         for ur in range(self.topLeft[0] + 1, self.bottomRight[0] + 1):

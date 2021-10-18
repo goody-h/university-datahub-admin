@@ -13,9 +13,9 @@ class MasterSheet(TableMapper):
             ],
             header_map = [{'search': 'session', 'exec': self.session_handler}, {'search': 'course (code|no)', 'exec': self.code_handler}]),
             
-        self.courseId = courseCode
-        self.session = session
-        self.courseCode = courseCode
+        self._courseId = courseCode
+        self._session = session
+        self._courseCode = courseCode
 
     def __modify_row__(self, row):
         row.update({
@@ -25,8 +25,25 @@ class MasterSheet(TableMapper):
         })
         # TODO tests and sanitize (mat number, score), yada yada yada!
     
+    def __is_valid_header__(self):
+        return self.session != '' and self.courseCode != ''
+
+    def __post_header_call__(self):
+        if self.session == None:
+            self.session = self._session
+        if self.courseCode == None:
+            self.courseCode = self._courseCode
+            self.courseId = self.courseId
+        
+    def __pre_sheet_call__(self):
+        self.courseId = None
+        self.session = None
+        self.courseCode = None
+
     def session_handler(self, r, c):
         s = self._peek_right('^(_){0,1}((\d){2}|(\d){4})/((\d){2}|(\d){4})(_){0,1}$', r, c)
+        if s == None:
+            return
         y2 = s.strip().replace('_','').split('/')[1]
         if len(y2) == 2:
             y2 = '20' + y2
@@ -34,6 +51,8 @@ class MasterSheet(TableMapper):
 
     def code_handler(self, r, c):
         code = self._peek_right('^(_){0,1}[A-z]{3}(\s|_){0,1}\d{3}\.\d(_){0,1}$', r, c)
+        if code == None:
+            return
         c1 = code.replace('_', '').replace(' ', '').lower()
         c2 = re.split('([a-z]{3})(\d{3})\.(\d)', c1)
         self.courseCode = c2[1] + '_' + c2[2] + '_' + c2[3]
