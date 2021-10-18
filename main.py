@@ -24,12 +24,15 @@ from transformers.spread_sheet import SpreadSheet
 from transformers.student_list import StudentList
 from transformers.list_upload import ListUpload
 from transformers.summary_sheet import SummarySheet
+from transformers.course_list import CourseList
 
 from transformers.sample_data.result import user
 from transformers.sample_data.courses import MEG, MCT
 
 from models.result import Result
 from models.student import Student
+from models.course import Course
+from models.department import Department
 from database.base import Session, engine, Base
 from utils import app_path
 import time, math
@@ -38,7 +41,7 @@ import tkinter as tk
 from tkinter import filedialog
 
 Base.metadata.create_all(engine)
-faulthandler.enable()
+# faulthandler.enable()
 
 class HLayout(object):
     def __init__(self, parent, name, margin_top) -> None:
@@ -182,6 +185,7 @@ class Ui_centralWidget(object):
         self.comboBox.setMinimumSize(QtCore.QSize(120, 0))
         # self.comboBox.setMaximumSize(QtCore.QSize(121, 16777215))
         self.comboBox.setObjectName("comboBox")
+        self.comboBox.addItem("")
         self.comboBox.addItem("")
         self.comboBox.addItem("")
         self.comboBox.addItem("")
@@ -343,6 +347,7 @@ class Ui_centralWidget(object):
         self.comboBox.setItemText(0, _translate("centralWidget", "SELECT"))
         self.comboBox.setItemText(1, _translate("centralWidget", "Master sheet"))
         self.comboBox.setItemText(2, _translate("centralWidget", "Biodata"))
+        self.comboBox.setItemText(3, _translate("centralWidget", "Dept & Courses"))
         self.label_5.setText(_translate("centralWidget", "0 files selected"))
         self.uploadButton.setText(_translate("centralWidget", " Upload"))
         self.label.setText(_translate("centralWidget", "Select excel files:"))
@@ -690,7 +695,7 @@ class Worker(QObject):
                     # data['batchId'] = batch
                     record = object(data)
                     if data.get('delete') != None and str(data.get('delete')).lower() == 'true':
-                        delt = delete(data, self.session)
+                        delt = delete(data, self.session, False)
                         if delt > 0:
                             deleted += 1
                             data['status'] = "deleted"
@@ -706,7 +711,7 @@ class Worker(QObject):
                         except Exception as e:
                             self.session.rollback()
                             try:
-                                delete(data, self.session)
+                                delete(data, self.session, True)
                                 self.session.commit()
                                 self.session.add(record)
                                 self.session.commit()
@@ -738,10 +743,50 @@ class Worker(QObject):
                 annotation = data['annotation'],
                 score = data['score'],
             ),
-            delete = lambda data, session: session.query(Result)
+            delete = lambda data, session, update: session.query(Result)
                 .filter(Result.resultId == data['resultId']).delete()
         )
+
+    def department_upload(self):
+        self.table_upload(
+            mapper = lambda file: CourseList(file),
+            object = self.department_object,
+            delete = self.del_dept
+        )
             
+    def del_dept(self, data, session, isUpdate):
+        if data['type'] == 'course':
+            return session.query(Course).filter(Course.id == data['id']).delete()
+        else:
+            if not isUpdate:
+                session.query(Course).filter(Course.department == data['id']).delete()
+            return session.query(Department).filter(Department.id == data['id']).delete()
+
+    def department_object(self, data):
+        if data['type'] == 'course':
+            return Course(
+                id = data['id'],
+                code = data['code'],
+                title = data['title'],
+                cu = data['cu'],
+                pair = data['pair'],
+                level = data['level'],
+                sem = data['sem'],
+                department = data['department'],
+            )
+        else:
+            return Department(
+                id = data['id'],
+                faculty = data['faculty'],
+                department = data['department'],
+                code = data['code'],
+                hod = data['hod'],
+                semesters = data['semesters'],
+                levels = data['levels'],
+                summary = data['summary'],
+                spreadsheet = data['spreadsheet'],
+            )
+
     def biodata_upload(self):
         self.table_upload(
             mapper = lambda file: StudentList(file),
@@ -757,7 +802,7 @@ class Worker(QObject):
                 first_name = data['first_name'],
                 other_names = data['other_names'],
             ),
-            delete = lambda data, session: session.query(Student)
+            delete = lambda data, session, update: session.query(Student)
                 .filter(Student.mat_no == data['mat_no']).delete()
         )
         
@@ -766,11 +811,11 @@ class Worker(QObject):
         if index == 0:
             self.show_message.emit('Please select an upload type', False)
         elif index == 1:
-            # thread = threading.Thread(target=self.mastersheet_upload, args=())
-            # thread.start()
             self.mastersheet_upload()
         elif index == 2:
             self.biodata_upload()
+        elif index == 3:
+            self.department_upload()
         self.session.close()
         self.finished.emit()
 
