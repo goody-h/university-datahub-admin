@@ -12,7 +12,7 @@ class SummarySheet(object):
         self._wb = _wb
         response = {}
         output = []
-        ws = _wb['Summary']
+        ws = _wb['Overall Summary']
 
         for res in results:
             tcu = 0
@@ -23,30 +23,41 @@ class SummarySheet(object):
                 tqp += value['tqp']
             if tcu != 0:
                 cgpa = tqp / tcu
-            res['user'].update({'cgpa': cgpa, 'tcu': tcu, 'tqp': tqp})
-            output.append(res['user'])
+            res['result'] = {'cgpa': cgpa, 'tcu': tcu, 'tqp': tqp}
+            output.append(res)
             
-        output.sort(key = lambda e: (-e['cgpa']))
+        output.sort(key = lambda e: (-e['result']['cgpa'], -e['result']['tqp']))
 
         row_shift = max(len(output) - 1, 0)
 
         table = ws.tables.get('SummaryTable')
         ref = table.ref
+        totals = table.totalsRowCount
+        if totals == None:
+            totals = 0
 
         if row_shift > 0:
-            ws.insert_rows(int(self._split_ref(ref)[4]), row_shift)
+            ws.insert_rows(int(self._split_ref(ref)[4]) + 1 - totals, row_shift)
             table.ref = self._shift_range(ref, row_shift)
 
         top = int(self._split_ref(table.ref)[2]) + 1
 
         i = 0
         for out in output:
-            ws['A' + str(i + top)] = out['mat_no']
-            ws['B' + str(i + top)] = out['name']
-            ws['C' + str(i + top)] = out['tcu']
-            ws['D' + str(i + top)] = out['tqp']
-            ws['E' + str(i + top)] = out['cgpa']
-            for c in range(1, 6):
+            ws['A' + str(i + top)] = out['user']['mat_no']
+            ws['B' + str(i + top)] = out['user']['name']
+
+            for l in range(0, 7):
+                level = out['level_data'].get(l + 1)
+                if level == None:
+                    level = {'tcu': 0, 'tqp': 0}
+                ws.cell(i + top, 3 + l * 2).value = level['tqp']
+                ws.cell(i + top, 4 + l * 2).value = level['tcu']
+
+            for c in range(17, 21):
+                ws.cell(i + top, c).value = ws.cell(top, c).value
+
+            for c in range(1, 21):
                 ws.cell(i + top, c).style = ws.cell(top, c).style
             i += 1
 

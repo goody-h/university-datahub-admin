@@ -10,19 +10,20 @@ _sheetMap = {
     'hod': 'B22', 'dept': 'A3', 'faculty': 'A2'
 }
 
-class _LeadData(object):
+class _SharedData(object):
     hod = "22"
-    def __init__(self):
+    def __init__(self, level_status):
         super().__init__()
+        self.level_status = level_status
 
 class _Level(object):
-    def __init__(self, level, session, wb, lead_data,  is_lead=False, is_tail=False):
+    def __init__(self, level, session, wb, shared_data,  is_lead=False, is_tail=False):
         super().__init__()
         self.results = [[],[]]
         self.total_shift = 0
         self.level = level
         self.session = session
-        self.lead_data = lead_data
+        self.shared_data = shared_data
         self.is_lead = is_lead
         self.is_tail = is_tail
 
@@ -55,14 +56,20 @@ class _Level(object):
             ws[_sheetMap['session']] = str(self.session - 1) + '/' + str(self.session)
             
             ref1 = self.tables[0].ref
+            totals = self.tables[0].totalsRowCount
+            if totals == None:
+                totals = 0
             if row_shift1 > 0:
-                ws.insert_rows(int(self._split_ref(ref1)[4]), row_shift1)
+                ws.insert_rows(int(self._split_ref(ref1)[4]) + 1 - totals, row_shift1)
                 self.tables[0].ref = self._shift_range(ref1, row_shift1)
 
             ref2 = self.tables[1].ref
+            totals = self.tables[0].totalsRowCount
+            if totals == None:
+                totals = 0
             if row_shift1 > 0 or row_shift2 > 0:
                 if row_shift2 > 0:
-                    ws.insert_rows(int(self._split_ref(ref2)[4]) + row_shift1, row_shift2)
+                    ws.insert_rows(int(self._split_ref(ref2)[4]) + row_shift1 + 1 - totals, row_shift2)
                 self.tables[1].ref = self._shift_range(ref2, row_shift1 + row_shift2, row_shift1)
             
             refs = [
@@ -77,6 +84,15 @@ class _Level(object):
             for result in self.results[c]:
                 score = result.get('score')
                 unit = result['cu']
+
+                if result['pair'] > 0:
+                    sem_id = result['level'] + result['sem']
+                    level_status = self.shared_data.level_status
+                    if (level_status['electives'].get(sem_id) != None and 
+                        len(set(level_status['electives'][sem_id])) > result['pair']
+                    ):
+                        result['comment'] += 'flag: Excess electives {}\n'.format(
+                            set(level_status['electives'][sem_id]))
                 
                 if self.ws != None:
                     top = refs[result['sem'] - 1]
@@ -95,6 +111,8 @@ class _Level(object):
                     scorer = [39.9999, 44.9999, 49.9999, 59.9999, 69.9999, score]
                     scorer.sort()
                     gp = scorer.index(score)
+                    if result['flags'].count('carryover') > 0:
+                        gp = min(3, gp)
                     tcu += unit
                     tqp += gp * unit
                 i += 1
@@ -103,7 +121,7 @@ class _Level(object):
         self.tcu = tcu
 
         if self.is_lead:
-            self.lead_data.hod = str(22 + total_shift)
+            self.shared_data.hod = str(22 + total_shift)
         
     def _shift_range(self, range, bottom, top=0):
         rng = self._split_ref(range)
@@ -115,7 +133,7 @@ class _Level(object):
     def finish(self):
         if not self.is_lead and self.ws != None:
             hod_cell = str(22 + self.total_shift)
-            self.ws['B' + hod_cell] = self.ws['B' + hod_cell].value.replace('22', self.lead_data.hod)
+            self.ws['B' + hod_cell] = self.ws['B' + hod_cell].value.replace('22', self.shared_data.hod)
 
 
 class SpreadSheet(object):
@@ -138,21 +156,23 @@ class SpreadSheet(object):
                 if _sheetMap.get(key) != None:
                     _wb['L100'][_sheetMap[key]] = user[key]
         
-        level_status = { 'sessions': {}, 'last_sem': 100 }
+        level_status = { 'sessions': {}, 'last_sem': 100, 'electives': {} }
         result_map = {}
 
         # step 1: remove carry-overs
         for result in results:
+            #TODO sort out unknown courses
             result.update(courses[result['courseCode']])
-            result.update({'_session': result['session'], 'comment': ''})
+            result.update({'_session': result['session'], 'comment': '', 'flags': []})
             map = result_map.get(result['courseCode'])
 
             l_session = level_status['sessions'].get(result['session'])
-            if l_session == None or result['level'] + result['sem'] > l_session:
-                level_status['sessions'][result['session']] = result['level'] + result['sem']
+            sem_id = result['level'] + result['sem']
+            if l_session == None or sem_id > l_session:
+                level_status['sessions'][result['session']] = sem_id
             
-            if result['level'] + result['sem'] > level_status['last_sem']:
-                level_status['last_sem'] = result['level'] + result['sem']
+            if sem_id > level_status['last_sem']:
+                level_status['last_sem'] = sem_id
             if result['score'] < 40:
                 result['cu'] = 0
             if map == None or (map['score'] < 40 and result['session'] > map['session']):
@@ -160,10 +180,18 @@ class SpreadSheet(object):
                     result['comment'] = (map['comment'] + '[ session: ' + str(map['session'] - 1) + '/' 
                         + str(map['session']) + ', score: ' + str(map['score']) + ']\n')
                     result['_session'] = result['session'] + 0.4
+                    result['code'] += '*'
+                    result['flags'].append('carryover')
                 result_map[result['courseCode']] = result
             else:
                 result_map[result['courseCode']]['comment'] = (map['comment'] + 'flag* [ session: ' + str(result['session'] - 1) + '/' 
                     + str(result['session']) + ', score: ' + str(result['score']) + ']\n')
+            if result['pair'] > 0:
+                result['_session'] = result['session'] + 0.3
+                if level_status['electives'].get(sem_id) == None:
+                    level_status['electives'][sem_id] = [result['courseCode']]
+                else:
+                    level_status['electives'][sem_id].append(result['courseCode'])
 
         self.scored_results.extend(results)
 
@@ -171,7 +199,11 @@ class SpreadSheet(object):
 
         # step 2: add missing courses till last semester    
         for key in courses.keys():
-            if result_map.get(key) == None and courses[key]['level'] + courses[key]['sem'] <= level_status['last_sem']:
+            sem_id = courses[key]['level'] + courses[key]['sem']
+            if (result_map.get(key) == None and sem_id <= level_status['last_sem'] 
+                and (courses[key]['pair'] == 0 or level_status['electives'].get(sem_id) == None or 
+                len(set(level_status['electives'][sem_id])) < courses[key]['pair'])
+            ):
                 result_map[key] = {}
                 result_map[key].update(courses[key])
                 session = level_status['sessions'][int(courses[key]['level']/100) - 1]
@@ -207,12 +239,12 @@ class SpreadSheet(object):
 
     def _write_results(self, results, status):
         levels = {}
-        lead_data = _LeadData()
+        shared_data = _SharedData(status)
         for result in results:
             level = status['sessions'].index(result['session']) + 1
             sem = result['sem']
             if levels.get(level) == None:
-                levels[level] = _Level(level, result['session'], self._wb, lead_data, is_lead=level == 1, is_tail=level>=5)
+                levels[level] = _Level(level, result['session'], self._wb, shared_data, is_lead=level == 1, is_tail=level>=5)
             levels[level].add_result(result, sem)
         for level in levels.values():
             level.commit()

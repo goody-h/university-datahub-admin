@@ -77,11 +77,4 @@ result = [
     {'courseCode': 'ges_400_2', 'score': 54, 'session': 2019},
     {'courseCode': 'eng_501_1', 'score': 72, 'session': 2020},
     {'courseCode': 'eng_502_1', 'score': 99, 'session': 2020},
-    {'courseCode': 'meg_503_1', 'score': 62, 'session': 2020},
-    {'courseCode': 'meg_505_1', 'score': 90, 'session': 2020},
-    {'courseCode': 'meg_507_1', 'score': 84, 'session': 2020},
-    {'courseCode': 'meg_551_1', 'score': 95, 'session': 2020},
-    {'courseCode': 'meg_561_1', 'score': 65, 'session': 2020},
-    {'courseCode': 'meg_535_1', 'score': 68, 'session': 2020},
-    {'courseCode': 'meg_537_1', 'score': 85, 'session': 2020}
 ]
