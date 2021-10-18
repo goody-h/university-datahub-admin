@@ -13,6 +13,7 @@ class ListUpload(TableMapper):
     def __modify_row__(self, row):
         row.update({'mat_no': row['mat_no'].upper()})
         # TODO tests and sanitize (mat number, score), yada yada yada!
+        return True
     
 if __name__ == '__main__':
     # Run a test using sample master sheet

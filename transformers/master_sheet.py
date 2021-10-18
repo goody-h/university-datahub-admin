@@ -24,6 +24,7 @@ class MasterSheet(TableMapper):
             'resultId': self.getResultId(row['mat_no'].upper())
         })
         # TODO tests and sanitize (mat number, score), yada yada yada!
+        return row.get('score') != None and re.fullmatch('^\d+\.{0,1}\d*$',str(row.get('score'))) != None
     
     def __is_valid_header__(self):
         return self.session != '' and self.courseCode != ''

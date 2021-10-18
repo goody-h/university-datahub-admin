@@ -18,7 +18,7 @@ class TableMapper(object):
         self.row_check = row_check
     
     def __modify_row__(self, row):
-        pass
+        return True
 
     def __post_header_call__(self):
         pass
@@ -102,8 +102,8 @@ class TableMapper(object):
                         'value': self.sanitize(self.ws.cell(ur, uc).value)
                     })
             row['annotation'] = str(annotation)
-            self.__modify_row__(row)
-            self.data_rows.append(row)
+            if self.__modify_row__(row):
+                self.data_rows.append(row)
 
     def sanitize(self, value):
         if value == None:

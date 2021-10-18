@@ -22,6 +22,7 @@ class StudentList(TableMapper):
     def __modify_row__(self, row):
         row.update({'mat_no': row['mat_no'].upper()})
         # TODO tests and sanitize (mat number, score), yada yada yada!
+        return True
     
     def get_students(self):
         return self.get_data()
