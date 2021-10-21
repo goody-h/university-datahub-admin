@@ -1,9 +1,11 @@
 # Touch not
 import math
-def rectify(sessions):
+def rectify(sessions, levels = 7):
     if len(sessions.keys()) == 0:
         return []
-    s = [0,0,0,0,0,0,0]
+    s = []
+    for i in range(0, levels):
+        s.append(0)
     
     ss = []
     ss.extend(sessions.keys())

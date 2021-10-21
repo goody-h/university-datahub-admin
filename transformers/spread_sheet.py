@@ -2,6 +2,7 @@ from openpyxl import load_workbook
 from openpyxl.comments import Comment
 import re
 import transformers.session_utils as session_utils
+from utils import app_path
 
 
 _sheetMap = {
@@ -17,69 +18,81 @@ class _SharedData(object):
         self.level_status = level_status
 
 class _Level(object):
-    def __init__(self, level, session, wb, shared_data,  is_lead=False, is_tail=False):
+    def __init__(self, level, session, wb, shared_data, department,  is_lead=False, is_tail=False):
         super().__init__()
-        self.results = [[],[]]
+        self.results = []
         self.total_shift = 0
         self.level = level
         self.session = session
         self.shared_data = shared_data
         self.is_lead = is_lead
         self.is_tail = is_tail
+        self.department = department
 
         self.tqp = 0
         self.tcu = 0
-        
+
         ws = None
         self.tables = None
+
+        for i in range(0, department.semesters):
+            self.results.append([])
         if wb != None:
             ws = wb['L' + str(level * 100)]
-            self.tables = [ws.tables.get('S' + str(level) + '.1'), ws.tables.get('S' + str(level) + '.2')]
+            self.tables = []
+            for i in range(0, department.semesters):
+                self.tables.append(ws.tables.get('S{}.{}'.format(level, i + 1)))
         self.ws = ws
     
     def add_result(self, result, semester):
-        self.results[semester - 1].append(result)
+        if semester > 0:
+            if semester > len(self.results):
+                for i in range(semester - len(self.results)):
+                    self.results.append([])
+            self.results[semester - 1].append(result)
 
     def commit(self):
         tqp = 0
         tcu = 0
 
-        refs = None
-        ws = None
-        row_shift1 = max(len(self.results[0]) - 1, 0)
-        row_shift2 = max(len(self.results[1]) - 1, 0)
-        total_shift = row_shift1 + row_shift2
-        self.total_shift = total_shift
+        self.tables = []
+        refs = []
+        total_shift = 0
         
         if self.ws != None:
             ws = self.ws
             ws[_sheetMap['session']] = str(self.session - 1) + '/' + str(self.session)
             
-            ref1 = self.tables[0].ref
-            totals = self.tables[0].totalsRowCount
-            if totals == None:
-                totals = 0
-            if row_shift1 > 0:
-                ws.insert_rows(int(self._split_ref(ref1)[4]) + 1 - totals, row_shift1)
-                self.tables[0].ref = self._shift_range(ref1, row_shift1)
-
-            ref2 = self.tables[1].ref
-            totals = self.tables[0].totalsRowCount
-            if totals == None:
-                totals = 0
-            if row_shift1 > 0 or row_shift2 > 0:
-                if row_shift2 > 0:
-                    ws.insert_rows(int(self._split_ref(ref2)[4]) + row_shift1 + 1 - totals, row_shift2)
-                self.tables[1].ref = self._shift_range(ref2, row_shift1 + row_shift2, row_shift1)
-            
-            refs = [
-                int(self._split_ref(self.tables[0].ref)[2]) + 1,
-                int(self._split_ref(self.tables[1].ref)[2]) + 1
-            ]
-            if self.is_tail:
-                ws['G' + str(23 + total_shift)] = ws['G' + str(23 + total_shift)].value.replace('20', str(20 + total_shift))
+            for s in range(0, len(self.results)):
+                self.tables.append(self.ws.tables.get('S{}.{}'.format(self.level, s + 1)))
+        for t in range(len(self.results)):
+            table = None
+            shift = max(len(self.results[t]) - 1, 0)
+            if self.ws != None:
+                table = self.tables[t]
+            if table != None:
+                
+                ref = table.ref
+                totals = table.totalsRowCount
+                if totals == None:
+                    totals = 0
+                if total_shift > 0 or shift > 0:
+                    if shift > 0:
+                        ws.insert_rows(int(self._split_ref(ref)[4]) + total_shift + 1 - totals, shift)
+                    table.ref = self._shift_range(ref, total_shift + shift, total_shift)
+                refs.append(int(self._split_ref(table.ref)[2]) + 1)
+            else:
+                refs.append(None)
+            total_shift += shift
         
-        for c in range(2):
+        if self.ws != None:
+            if self.is_tail:
+                if ws['G' + str(23 + total_shift)].value != None:
+                    ws['G' + str(23 + total_shift)] = ws['G' + str(23 + total_shift)].value.replace('20', str(20 + total_shift))
+        
+        self.total_shift = total_shift
+         
+        for c in range(len(self.results)):
             i = 0
             for result in self.results[c]:
                 score = result.get('score')
@@ -143,13 +156,18 @@ class SpreadSheet(object):
         self._wb = None
         self.scored_results = []
 
-    def generate(self, user, results, courses, template = '', filename = ''):
-
+    def generate(self, user, results, courses, department, filename = ''):
         user['name'] = (user['last_name'].upper() + ', ' + 
             user['first_name'].capitalize() + ' ' + user['other_names'].capitalize()).strip().rstrip(',')
+        if department.faculty != None:
+            user['faculty'] = department.faculty
+        if department.department_long != None:
+            user['dept'] = department.department_long
+        if department.hod != None:
+            user['hod'] = department.hod
 
-        if template != None and template != '':
-            _wb = load_workbook(template)
+        if filename != None and filename != '':
+            _wb = load_workbook(app_path('static/excel/templates/{}.xlsx'.format(department.spreadsheet)))
             self._wb = _wb
         
             for key in user.keys():
@@ -195,7 +213,7 @@ class SpreadSheet(object):
 
         self.scored_results.extend(results)
 
-        level_status.update(session_utils.rectify(level_status['sessions']))
+        level_status.update(session_utils.rectify(level_status['sessions'], department.levels))
 
         # step 2: add missing courses till last semester    
         for key in courses.keys():
@@ -214,7 +232,7 @@ class SpreadSheet(object):
         final_results.sort(key = lambda i: (i['_session'], i['code']))
 
         # step 3: write reuluts to sheet
-        level_data = self._write_results(final_results, level_status)
+        level_data = self._write_results(final_results, level_status, department)
         response = {'status': 'success', 'message': '', 'level_data': level_data, 'user': user}
 
         print('Written {} results'.format(len(self.scored_results)))
@@ -237,14 +255,14 @@ class SpreadSheet(object):
         return response
 
 
-    def _write_results(self, results, status):
+    def _write_results(self, results, status, department):
         levels = {}
         shared_data = _SharedData(status)
         for result in results:
             level = status['sessions'].index(result['session']) + 1
             sem = result['sem']
             if levels.get(level) == None:
-                levels[level] = _Level(level, result['session'], self._wb, shared_data, is_lead=level == 1, is_tail=level>=5)
+                levels[level] = _Level(level, result['session'], self._wb, shared_data, department, is_lead=level == 1, is_tail=level>=4)
             levels[level].add_result(result, sem)
         for level in levels.values():
             level.commit()

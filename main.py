@@ -258,22 +258,25 @@ class Ui_centralWidget(object):
         self.widget_2.setObjectName("widget_2")
         self.verticalLayout_2 = QtWidgets.QVBoxLayout(self.widget_2)
         self.verticalLayout_2.setObjectName("verticalLayout_2")
-        self.mechRadioButton = QtWidgets.QRadioButton(self.widget_2)
-        self.mechRadioButton.setMinimumSize(QtCore.QSize(200, 0))
+
+        self.widget_z = HLayout(self.widget_2, 'widget_z', 0)        
+
+        self.label_z = QtWidgets.QLabel(self.widget_z.widget)
+        # self.label_b.setMinimumSize(QtCore.QSize(200, 0))
         font = QtGui.QFont()
-        font.setBold(True)
-        self.mechRadioButton.setFont(font)
-        self.mechRadioButton.setObjectName("mechRadioButton")
-        self.verticalLayout_2.addWidget(self.mechRadioButton)
-        self.mctRadioButton = QtWidgets.QRadioButton(self.widget_2)
-        self.mctRadioButton.setMinimumSize(QtCore.QSize(200, 0))
-        self.mctRadioButton.setMaximumSize(QtCore.QSize(16777215, 16777215))
-        font = QtGui.QFont()
-        font.setBold(True)
-        self.mctRadioButton.setFont(font)
-        self.mctRadioButton.setObjectName("mctRadioButton")
-        self.verticalLayout_2.addWidget(self.mctRadioButton)
-#       
+        font.setPointSize(11)
+        self.label_z.setFont(font)
+        self.label_z.setObjectName("label_z")
+
+        self.comboBoxz = QtWidgets.QComboBox(self.widget_z.widget)
+        # self.comboBoxz.setMinimumSize(QtCore.QSize(120, 0))
+        # self.comboBox.setMaximumSize(QtCore.QSize(121, 16777215))
+        self.comboBoxz.setObjectName("comboBoxz")
+        self.comboBoxz.addItem("Select Department:")
+
+        # self.widget_z.hlayout.addWidget(self.label_z, 1)
+        self.widget_z.hlayout.addWidget(self.comboBoxz, 4)
+        self.verticalLayout_2.addWidget(self.widget_z.widget, 0, QtCore.Qt.AlignTop)
 
         self.shButton = QtWidgets.QCheckBox(self.widget_2)
         self.shButton.setObjectName("shButton")
@@ -281,7 +284,7 @@ class Ui_centralWidget(object):
         self.smButton = QtWidgets.QCheckBox(self.widget_2)
         self.smButton.setObjectName("smButton")
 
-        self.widget_o = HLayout(self.widget_2, 'widget_o', 0)        
+        self.widget_o = HLayout(self.widget_2, 'widget_o', 100)        
 #
 
         self.matNumberLineEdit = QtWidgets.QLineEdit(self.widget_o.widget)
@@ -325,9 +328,6 @@ class Ui_centralWidget(object):
 
         self.retranslateUi(centralWidget)
         QtCore.QMetaObject.connectSlotsByName(centralWidget)
-        centralWidget.setTabOrder(self.genSpreadsheetButton, self.mechRadioButton)
-        centralWidget.setTabOrder(self.mechRadioButton, self.matNumberLineEdit)
-        centralWidget.setTabOrder(self.matNumberLineEdit, self.mctRadioButton)
 
         centralWidget.setFixedSize(centralWidget.sizeHint())
 
@@ -336,6 +336,8 @@ class Ui_centralWidget(object):
         self.progress = ProgressDialog(centralWidget, self.get_size_from_ratio(2.5, 3.5))
         self.worker = None
         self.thread = None
+        self.dpts = []
+        self.load_departments()
 
 
     def retranslateUi(self, centralWidget):
@@ -353,9 +355,9 @@ class Ui_centralWidget(object):
         self.label.setText(_translate("centralWidget", "Select excel files:"))
         self.selectFileButton.setText(_translate("centralWidget", "select"))
         self.label_3.setText(_translate("centralWidget", "Spreadsheet Generator"))
-        self.mechRadioButton.setText(_translate("centralWidget", "Mechanical Engineering"))
-        self.mctRadioButton.setText(_translate("centralWidget", "Mechatronics Engineering"))
-        
+
+        self.label_z.setText(_translate("centralWidget", ""))
+
         self.uploadButtonx.setText(_translate("centralWidget", " Select File "))
         self.label_b.setText(_translate("centralWidget", "or"))
         self.shButton.setText(_translate("centralWidget", "Generate spreadheet"))
@@ -370,6 +372,19 @@ class Ui_centralWidget(object):
         self.genSpreadsheetButton.clicked.connect(self.spreadsheet_handler)
         self.uploadButtonx.clicked.connect(self.uploadlist_handler)
 
+    def load_departments(self):
+        for i in range(0, len(self.dpts)):
+            self.comboBoxz.removeItem(i + 1)
+
+        session = Session()
+        self.dpts = session.query(Department).all()
+            
+        for i in range(1, self.comboBoxz.count()):
+            self.comboBoxz.removeItem(i)
+        for dpt in self.dpts:
+            self.comboBoxz.addItem('{}: {}'.format(dpt.department, dpt.code))
+        session.close()
+
     def create_thread(self, worker, exec):
         self.thread = QThread()
         worker.moveToThread(self.thread)
@@ -383,6 +398,7 @@ class Ui_centralWidget(object):
         worker.show_progress.connect(self.progress.show)
         worker.update_progress.connect(self.progress.update)
         worker.cancel_progress.connect(self.progress.close)
+        worker.load_departments.connect(self.load_departments)
         return self.thread
 
     def spreadsheet_handler(self):
@@ -423,7 +439,7 @@ class Ui_centralWidget(object):
     def get_text_file(self):
         root = tk.Tk()
         root.withdraw()
-        return( filedialog.askopenfilenames() )
+        return( filedialog.askopenfilenames(filetypes= [('Excel files', '.xlsx .xls')]) )
 
     def reset_files(self):
         self.files = None
@@ -512,6 +528,7 @@ class Worker(QObject):
     show_progress = pyqtSignal(int)
     update_progress = pyqtSignal(int)
     cancel_progress = pyqtSignal()
+    load_departments = pyqtSignal()
 
     def create_folder(self, folder):
         try:
@@ -578,37 +595,48 @@ class Worker(QObject):
                             'mat_no': _user.mat_no, 'sex': _user.sex,
                             'marital_status': _user.marital_status, 'department': _user.department
                         }
-
+                    department = None
                     if student['department'] == None or student['department'] == '':
-                        if self.app.mechRadioButton.isChecked():
-                            courses = MEG
-                            student['department'] == 'MEG'
-                        elif self.app.mctRadioButton.isChecked():
-                            courses = MCT
-                            student['department'] == 'MCT'
-                        else:
+                        dpt = self.app.comboBoxz.currentIndex()
+                        if dpt == 0:
                             group['no_dept']['v'].append(mat_no)
                             self.update_progress.emit(1)
                             continue
-                    elif re.search('(^meg$)|mechanical', student['department'].lower())  != None:
-                        courses = MEG
-                    elif re.search('(^mct$)|mechatronic', student['department'].lower())  != None:
-                        courses = MCT
+                        department = self.app.dpts[dpt - 1]
                     else:
-                        group['no_courses']['v'].append('{}: {}'.format(mat_no, student['department']))
-                        group['no_courses']['s'] = 'Course list unavailable for {}'.format(student['department'])
+                        for dpt in self.app.dpts:
+                            if student['department'].lower() == dpt.code.lower():
+                                department = dpt
+                                break
+                        if department == None:
+                            group['no_courses']['v'].append('{}: {}'.format(mat_no, student['department']))
+                            group['no_courses']['s'] = 'Department, {} is unavailable'.format(student['department'])
+                            self.update_progress.emit(1)
+                            continue
+
+                    student['department'] = department.code
+                    _courses = self.session.query(Course).filter(Course.department == department.code).all()
+
+                    
+                    # TODO fetch courses from database
+                    courses = {}
+                    
+                    if len(_courses) > 0:
+                        for course in _courses:
+                            courses[str(course.id)] = { 'pair': course.pair,  'level': course.level * 100, 'sem': course.sem, 'title': course.title, 'code': course.code, 'cu': course.cu }
+                    else:
+                        group['no_courses']['s'] = 'Department, {} is unavailable'.format(student['department'])
                         self.update_progress.emit(1)
                         continue
-
-                    template = app_path('static/excel/templates/spreadsheet_template.xlsx')
-                    if not gensh:
-                        template = None
+                    print(courses)
                     spread_sheet = SpreadSheet()
                     output = folder + mat_no.replace('/', '-') + '_spreadsheet_'+ suffix + '.xlsx'
+                    filename = app_path(output)
+                    if not gensh:
+                        filename = None
                     response = spread_sheet.generate(
-                        student, record, courses, 
-                        filename = app_path(output),
-                        template = template,
+                        student, record, courses, department,
+                        filename = filename,
                     )
 
                     print(response)
@@ -630,7 +658,7 @@ class Worker(QObject):
             summary = SummarySheet()
             summary.generate(
                 responses, 
-                template = app_path('static/excel/templates/summarysheet_template.xlsx'),
+                template = app_path('static/excel/templates/{}.xlsx'.format(department.summary)),
                 filename = app_path(output)
             )
             self.update_progress.emit(1)
@@ -753,6 +781,7 @@ class Worker(QObject):
             object = self.department_object,
             delete = self.del_dept
         )
+        self.load_departments.emit()
             
     def del_dept(self, data, session, isUpdate):
         if data['type'] == 'course':
@@ -779,6 +808,7 @@ class Worker(QObject):
                 id = data['id'],
                 faculty = data['faculty'],
                 department = data['department'],
+                department_long = data['department_long'],
                 code = data['code'],
                 hod = data['hod'],
                 semesters = data['semesters'],

@@ -68,6 +68,13 @@ class TableMapper(object):
     def _peek_right(self, pattern, row, column):
         for c in range(column + 1, column + 5):
             cell = self.ws.cell(row, c).value
+            isEnd = False
+            for map in self.header_map:
+                if re.search(map['search'], str(cell).lower()) != None:
+                    isEnd = True
+                    break
+            if isEnd:
+                break
             if re.search(pattern, str(cell).strip()) != None:
                 return cell
         return None

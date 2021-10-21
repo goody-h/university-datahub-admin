@@ -7,6 +7,7 @@ class Department(Base):
     id = Column(String, primary_key=True)
     faculty = Column(String)
     department = Column(String)
+    department_long = Column(String)
     code = Column(String)
     hod = Column(String)
     semesters = Column(Integer)

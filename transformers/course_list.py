@@ -18,6 +18,7 @@ class CourseList(TableMapper):
             header_map = [
                 {'search': '^faculty:', 'exec': self.faculty_handler},
                 {'search': '^department:', 'exec': self.department_handler},
+                {'search': '^department long:', 'exec': self.department_l_handler},
                 {'search': 'hod:', 'exec': self.hod_handler},
                 {'search': 'levels:', 'exec': self.levels_handler},
                 {'search': 'semesters:', 'exec': self.semesters_handler},
@@ -30,6 +31,7 @@ class CourseList(TableMapper):
     def __pre_sheet_call__(self):
         self.faculty = None
         self.dept = None
+        self.dept_l = None
         self.hod = None
         self.levels = None
         self.sems = None
@@ -44,17 +46,16 @@ class CourseList(TableMapper):
         if self.sems == None:
             self.sems = 2
         if self.spreadsheet == None:
-            self.spreadsheet = 'spreadsheet_template.xlsx'
+            self.spreadsheet = 'spreadsheet_template_generic'
         if self.summary == None:
-            self.summary = 'summarysheet_template.xlsx'
+            self.summary = 'summary_template_generic'
         if self.delete != None and str(self.delete).lower() == 'true':
             self.delete = 'true'
         if self.code != None:
             self.code.upper()
         
     def __is_valid_header__(self):
-        print(self.dept)
-        return self.dept != None and self.code != None and self.faculty != None
+        return self.dept != None and self.code != None
 
     def __modify_row__(self, row):
         row.update({'department': self.code, 'type': 'course' })
@@ -78,7 +79,8 @@ class CourseList(TableMapper):
     def __post_sheet_call__(self):
         if self.__is_valid_header__() or (self.delete == 'true' and self.code != None):
             self.data_rows.append({'type': 'department', 'faculty': self.faculty,
-             'hod': self.hod, 'department': self.dept, 'levels': self.levels,
+             'hod': self.hod, 'department': self.dept, 'department_long': self.dept_l, 
+             'levels': self.levels,
              'semesters': self.sems, 'code': self.code, 'spreadsheet': self.spreadsheet,
              'summary': self.summary, 'id': self.code, 'delete': self.delete })
 
@@ -86,6 +88,8 @@ class CourseList(TableMapper):
         self.faculty = self.text_handler(r, c)
     def department_handler(self, r, c):
         self.dept = self.text_handler(r, c)
+    def department_l_handler(self, r, c):
+        self.dept_l = self.text_handler(r, c)
     def hod_handler(self, r, c):
         self.hod = self.text_handler(r, c)
     def levels_handler(self, r, c):
