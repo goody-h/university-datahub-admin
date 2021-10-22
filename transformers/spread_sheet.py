@@ -39,6 +39,36 @@ class _Level(object):
     
     def add_result(self, result, semester):
         self.results[semester - 1].append(result)
+    
+    def commit_unknowns(self, results, wb):
+        if len(results) > 0:
+            ws = wb['Unknown Courses']
+            table = ws.tables.get('Unknown')
+            ws[_sheetMap['session']] = ' '
+            ref = table.ref
+            totals = table.totalsRowCount
+            row_shift = max(len(results) - 1, 0)
+            if row_shift > 0:
+                ws.insert_rows(int(self._split_ref(ref)[4]) + 1 - totals, row_shift)
+                table.ref = self._shift_range(ref, row_shift)
+            top = int(self._split_ref(table.ref)[2]) + 1
+            i = 0
+            for result in results:
+                ws['A' + str(i + top)] = result.get('courseCode')
+                if result.get('title') == None:
+                    result['title'] = '?'
+                ws['B' + str(i + top)] = result.get('title')
+                if result.get('cu') == None:
+                    result['cu'] = '?'
+                ws['C' + str(i + top)] = result.get('cu')
+                ws['D' + str(i + top)] = result.get('score')
+                ws['F' + str(i + top)] = str(result.get('session') - 1) + '/' + str(result.get('session'))
+                for c in range(1, 7):
+                    ws.cell(i + top, c).style = ws.cell(top, c).style
+                for c in range(5, 6):
+                    ws.cell(i + top, c).value = ws.cell(top, c).value
+                i += 1
+
 
     def commit(self):
         tqp = 0
@@ -257,6 +287,9 @@ class SpreadSheet(object):
         for level in levels.values():
             level.finish()
             levels[level.level] = {'tcu': level.tcu, 'tqp': level.tqp}
+        if self._wb != None:
+            unknown = _Level(None, None, None, None)
+            unknown.commit_unknowns(self.unknown_results, self._wb)
         return levels
 
 
