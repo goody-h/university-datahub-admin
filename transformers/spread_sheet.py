@@ -35,8 +35,6 @@ class _Level(object):
         ws = None
         self.tables = None
 
-        for i in range(0, department.semesters):
-            self.results.append([])
         if wb != None:
             ws = wb['L' + str(level * 100)]
             self.tables = []
