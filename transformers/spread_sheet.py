@@ -155,6 +155,7 @@ class SpreadSheet(object):
         super().__init__()
         self._wb = None
         self.scored_results = []
+        self.unknown_results = []
 
     def generate(self, user, results, courses, department, filename = ''):
         user['name'] = (user['last_name'].upper() + ', ' + 
@@ -180,7 +181,11 @@ class SpreadSheet(object):
         # step 1: remove carry-overs
         for result in results:
             #TODO sort out unknown courses
-            result.update(courses[result['courseCode']])
+            course = courses.get(result['courseCode'])
+            if course == None:
+                self.unknown_results.append(result)
+                continue
+            result.update(course)
             result.update({'_session': result['session'], 'comment': '', 'flags': []})
             map = result_map.get(result['courseCode'])
 
@@ -192,7 +197,7 @@ class SpreadSheet(object):
             if sem_id > level_status['last_sem']:
                 level_status['last_sem'] = sem_id
             if result['score'] < 40:
-                result['cu'] = 0
+                result['cu'] = None
             if map == None or (map['score'] < 40 and result['session'] > map['session']):
                 if map != None:
                     result['comment'] = (map['comment'] + '[ session: ' + str(map['session'] - 1) + '/' 
@@ -200,6 +205,7 @@ class SpreadSheet(object):
                     result['_session'] = result['session'] + 0.4
                     result['code'] += '*'
                     result['flags'].append('carryover')
+                    result_map['{}_{}'.format(map['courseCode'], map['session'])] = map
                 result_map[result['courseCode']] = result
             else:
                 result_map[result['courseCode']]['comment'] = (map['comment'] + 'flag* [ session: ' + str(result['session'] - 1) + '/' 

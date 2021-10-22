@@ -10,8 +10,7 @@
 import re
 import sys
 from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtWidgets import QFileDialog
-from PyQt5.QtCore import QDir, QSize, Qt
+from PyQt5.QtCore import QSize, Qt
 from PyQt5.QtWidgets import QMessageBox
 from PyQt5.QtCore import QObject, QThread, pyqtSignal
 
@@ -643,7 +642,9 @@ class Worker(QObject):
                         group['error']['s'] = response['message']
                     else:
                         responses.append(response)
-                        group['success']['v'].append('{}: {}'.format(mat_no, len(spread_sheet.scored_results)))
+                        total_r = len(spread_sheet.scored_results)
+                        unkown_r = len(spread_sheet.unknown_results)
+                        group['success']['v'].append('{}: {}/{}'.format(mat_no, total_r - unkown_r, total_r))
                 else:
                     group['no_result']['v'].append(mat_no)
             else:
@@ -666,7 +667,9 @@ class Worker(QObject):
                 path = output
                 if operations.count(True) > 1:
                     path = folder
-                self.show_message.emit('Operation complete!\n\nResult count: {}\n\nSaved at:\n{}'.format(len(spread_sheet.scored_results), app_path(path)), False)
+                total_r = len(spread_sheet.scored_results)
+                unkown_r = len(spread_sheet.unknown_results)
+                self.show_message.emit('Operation complete!\n\nResult count: {}/{}\n\nSaved at:\n{}'.format(total_r - unkown_r, total_r, app_path(path)), False)
             else:
                 for key in group.keys():
                     if key != 'success':
