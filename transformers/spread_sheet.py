@@ -50,7 +50,7 @@ class _Level(object):
             self.results[semester - 1].append(result)
     
     def commit_unknowns(self, results, wb):
-        if len(results) > 0:
+        if len(results) > 0 and wb['Unknown Courses'] != None and wb['Unknown Courses'].tables.get('Unknown') != None:
             ws = wb['Unknown Courses']
             table = ws.tables.get('Unknown')
             ws[_sheetMap['session']] = ' '
