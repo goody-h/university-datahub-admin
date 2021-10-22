@@ -27,7 +27,7 @@ MEG = {
     'eng_210_1': {'pair': 0,  'level': 200, 'sem': 1, 'title': 'Basic Electrical Engineering', 'code': 'ENG 210.1', 'cu': 3 },
     'eng_213_1': {'pair': 0,  'level': 200, 'sem': 1, 'title': 'Computer Programming for Engineers', 'code': 'ENG 213.1', 'cu': 2 },
     'meg_251_1': {'pair': 0,  'level': 200, 'sem': 1, 'title': 'Machine Drawing', 'code': 'MEG 251.1', 'cu': 1 },
-    'meg_200_1': {'pair': 0,  'level': 200, 'sem': 1, 'title': 'Intro. to Manufacturing Processes', 'code': 'MEG 200.1', 'cu': 2 },
+    'meg_200_0': {'pair': 0,  'level': 200, 'sem': 1, 'title': 'Intro. to Manufacturing Processes', 'code': 'MEG 200.0', 'cu': 2 },
     'eng_212_1': {'pair': 0,  'level': 200, 'sem': 1, 'title': 'Community Service', 'code': 'ENG 212.1', 'cu': 1 },
     'chm_240_2': {'pair': 0,  'level': 200, 'sem': 2, 'title': 'Physical Chemistry I', 'code': 'CHM 240.2', 'cu': 3 },
     'eng_206_2': {'pair': 0,  'level': 200, 'sem': 2, 'title': 'Engineering Mathematics III', 'code': 'ENG 206.2', 'cu': 3 },
@@ -48,7 +48,7 @@ MEG = {
     'meg_307_1': {'pair': 0,  'level': 300, 'sem': 1, 'title': 'Engineering Thermodynamics', 'code': 'MEG 307.1', 'cu': 3 },
     'meg_309_1': {'pair': 0,  'level': 300, 'sem': 1, 'title': 'Basic Metallurgy and Materials Selection', 'code': 'MEG 309.1', 'cu': 3 },
     'meg_311_1': {'pair': 0,  'level': 300, 'sem': 1, 'title': 'System Instrumentation', 'code': 'MEG 311.1', 'cu': 3 },
-    'meg_300_1': {'pair': 0,  'level': 300, 'sem': 1, 'title': 'System Instrumentation Workshop Practice', 'code': 'MEG 300.1', 'cu': 1 },
+    'meg_300_0': {'pair': 0,  'level': 300, 'sem': 1, 'title': 'System Instrumentation Workshop Practice', 'code': 'MEG 300.0', 'cu': 1 },
     'eng_303_2': {'pair': 0,  'level': 300, 'sem': 2, 'title': 'Engineering Mathematics V', 'code': 'ENG 303.2', 'cu': 3 },
     'ges_300_2': {'pair': 0,  'level': 300, 'sem': 2, 'title': 'Fundamentals of Entrepreneurship', 'code': 'GES 300.2', 'cu': 2 },
     'meg_302_2': {'pair': 0,  'level': 300, 'sem': 2, 'title': 'Fluid Mechanics', 'code': 'MEG 302.2', 'cu': 2 },
@@ -94,7 +94,7 @@ MEG = {
     'meg_534_2': {'pair': 1,  'level': 500, 'sem': 2, 'title': 'Vehicle Dynamics', 'code': 'MEG 534.2', 'cu': 3 },
     'meg_536_2': {'pair': 1,  'level': 500, 'sem': 2, 'title': 'Numerical Control Machine', 'code': 'MEG 536.2', 'cu': 3 },
     'meg_538_2': {'pair': 1,  'level': 500, 'sem': 2, 'title': 'Computational Transport Phenomena', 'code': 'MEG 538.2', 'cu': 3 },
-    # 'meg_540_2': {'pair': 1,  'level': 500, 'sem': 2, 'title': 'Building Services Engineering', 'code': 'MEG 540.2', 'cu': 3 }
+    'meg_540_2': {'pair': 1,  'level': 500, 'sem': 2, 'title': 'Building Services Engineering', 'code': 'MEG 540.2', 'cu': 3 }
 }
 
 MCT = {
