@@ -25,7 +25,6 @@ from transformers.summary_sheet import SummarySheet
 from transformers.course_list import CourseList
 
 from transformers.sample_data.result import user
-from transformers.sample_data.courses import MEG, MCT
 
 from models.result import Result
 from models.student import Student
@@ -613,16 +612,14 @@ class Worker(QObject):
 
                     student['department'] = department.code
                     _courses = self.session.query(Course).filter(Course.department == department.code).all()
-
-                    
-                    # TODO fetch courses from database
                     courses = {}
                     
                     if len(_courses) > 0:
                         for course in _courses:
                             courses[str(course.id)] = { 'pair': course.pair,  'level': course.level * 100, 'sem': course.sem, 'title': course.title, 'code': course.code, 'cu': course.cu }
                     else:
-                        group['no_courses']['s'] = 'Department, {} is unavailable'.format(student['department'])
+                        group['no_courses']['v'].append('{}: {}'.format(mat_no, student['department']))
+                        group['no_courses']['s'] = 'No course list available for department, {}'.format(student['department'])
                         self.update_progress.emit(1)
                         continue
                     print(courses)
@@ -788,13 +785,13 @@ class Worker(QObject):
         if data['type'] == 'course':
             return session.query(Course).filter(Course.id == data['id']).delete()
         else:
-            if not isUpdate:
-                session.query(Course).filter(Course.department == data['id']).delete()
-            return session.query(Department).filter(Department.id == data['id']).delete()
+            c = session.query(Course).filter(Course.department == data['id']).delete()
+            return int(session.query(Department).filter(Department.id == data['id']).delete()) + int(c)
 
     def department_object(self, data):
         if data['type'] == 'course':
             return Course(
+                courseId = data['courseId'],
                 id = data['id'],
                 code = data['code'],
                 title = data['title'],
@@ -868,8 +865,6 @@ class Worker(QObject):
             self.set_mat_no_list.emit(mat_nos)
         self.finished.emit()
         
-    
-
 if __name__ == "__main__":
     import sys
     app = QtWidgets.QApplication(sys.argv)

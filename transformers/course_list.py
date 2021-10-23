@@ -13,7 +13,6 @@ class CourseList(TableMapper):
                 {'search': '^level$', 'key': 'level'},
                 {'search': '^semester$', 'key': 'sem'},
                 {'search': '(elective|pair)', 'key': 'pair'},
-                {'search': 'delete', 'key': 'delete'},
             ],
             header_map = [
                 {'search': '^faculty:', 'exec': self.faculty_handler},
@@ -66,9 +65,7 @@ class CourseList(TableMapper):
         c2 = re.split('([a-z]{3})(\d{3})\.(\d)', c1)
         row['code'] = c2[1].upper() + ' ' + c2[2] + '.' + c2[3]
         row['id'] = c2[1] + '_' + c2[2] + '_' + c2[3]
-
-        if self.delete == 'true':
-            row['delete'] = self.delete
+        row['courseId'] = row['id'] + '_' + self.code
 
         return ((row.get('title') != None and row.get('title') != ''
             and row.get('cu') != None and re.fullmatch('^\d+\.{0,1}\d*$',str(row.get('cu'))) != None
@@ -78,7 +75,7 @@ class CourseList(TableMapper):
     
     def __post_sheet_call__(self):
         if self.__is_valid_header__() or (self.delete == 'true' and self.code != None):
-            self.data_rows.append({'type': 'department', 'faculty': self.faculty,
+            self.data_rows.insert(0, {'type': 'department', 'faculty': self.faculty,
              'hod': self.hod, 'department': self.dept, 'department_long': self.dept_l, 
              'levels': self.levels,
              'semesters': self.sems, 'code': self.code, 'spreadsheet': self.spreadsheet,

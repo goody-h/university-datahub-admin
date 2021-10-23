@@ -4,7 +4,8 @@ from database.base import Base
 class Course(Base):
     __tablename__ = 'courses'
 
-    id = Column(String, primary_key=True)
+    courseId = Column(String, primary_key=True)
+    id = Column(String)
     code = Column(String)
     title = Column(String)
     cu = Column(Integer)
