@@ -415,7 +415,7 @@ class Ui_centralWidget(object):
     def get_text_file(self):
         root = tk.Tk()
         root.withdraw()
-        return( filedialog.askopenfilenames() )
+        return( filedialog.askopenfilenames(filetypes= [('Excel files', '.xlsx .xls .xlsm')]) )
 
     def reset_files(self):
         self.files = None
