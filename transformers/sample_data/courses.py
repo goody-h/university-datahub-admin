@@ -28,7 +28,7 @@ MEG = {
     'eng_213_1': {'pair': 0,  'level': 200, 'sem': 1, 'title': 'Computer Programming for Engineers', 'code': 'ENG 213.1', 'cu': 2 },
     'meg_251_1': {'pair': 0,  'level': 200, 'sem': 1, 'title': 'Machine Drawing', 'code': 'MEG 251.1', 'cu': 1 },
     'meg_200_0': {'pair': 0,  'level': 200, 'sem': 1, 'title': 'Intro. to Manufacturing Processes', 'code': 'MEG 200.0', 'cu': 2 },
-    'eng_212_1': {'pair': 0,  'level': 200, 'sem': 1, 'title': 'Community Service', 'code': 'ENG 212.1', 'cu': 1 },
+    'eng_212_2': {'pair': 0,  'level': 200, 'sem': 2, 'title': 'Community Service', 'code': 'ENG 212.1', 'cu': 1 },
     'chm_240_2': {'pair': 0,  'level': 200, 'sem': 2, 'title': 'Physical Chemistry I', 'code': 'CHM 240.2', 'cu': 3 },
     'eng_206_2': {'pair': 0,  'level': 200, 'sem': 2, 'title': 'Engineering Mathematics III', 'code': 'ENG 206.2', 'cu': 3 },
     'eng_207_2': {'pair': 0,  'level': 200, 'sem': 2, 'title': 'Basic Fluid Mechanics', 'code': 'ENG 207.2', 'cu': 2 },

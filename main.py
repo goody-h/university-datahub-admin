@@ -620,11 +620,11 @@ class Worker(QObject):
 
         # TODO do magic here
         if gensm and len(group['success']['v']) > 0:
-            output = folder + 'summary_'+ suffix + '.xlsx'
+            output = folder + 'summary_'+ suffix + '.xlsm'
             summary = SummarySheet()
             summary.generate(
                 responses, 
-                template = app_path('static/excel/templates/summarysheet_template.xlsx'),
+                template = app_path('static/excel/templates/summarysheet_template.xlsm'),
                 filename = app_path(output)
             )
             self.update_progress.emit(1)
