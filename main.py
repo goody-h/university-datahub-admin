@@ -435,7 +435,7 @@ class Ui_centralWidget(object):
     def get_text_file(self):
         root = tk.Tk()
         root.withdraw()
-        return( filedialog.askopenfilenames(filetypes= [('Excel files', '.xlsx .xls')]) )
+        return( filedialog.askopenfilenames(filetypes= [('Excel files', '.xlsx .xls .xlsm')]) )
 
     def reset_files(self):
         self.files = None
@@ -650,11 +650,11 @@ class Worker(QObject):
 
         # TODO do magic here
         if gensm and len(group['success']['v']) > 0:
-            output = folder + 'summary_'+ suffix + '.xlsx'
+            output = folder + 'summary_'+ suffix + '.xlsm'
             summary = SummarySheet()
             summary.generate(
                 responses, 
-                template = app_path('static/excel/templates/{}.xlsx'.format(department.summary)),
+                template = app_path('static/excel/templates/{}.xlsm'.format(department.summary)),
                 filename = app_path(output)
             )
             self.update_progress.emit(1)
