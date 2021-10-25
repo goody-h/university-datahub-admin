@@ -388,6 +388,8 @@ class Ui_centralWidget(object):
         for dpt in self.dpts:
             self.comboBoxz.addItem('{}: {}'.format(dpt.department, dpt.code))
         session.close()
+        if len(self.dpts) == 1:
+            self.comboBoxz.setCurrentIndex(1)
 
     def create_thread(self, worker, exec):
         self.thread = QThread()
@@ -581,8 +583,6 @@ class Worker(QObject):
                 _record = self.session.query(Result).filter(Result.mat_no == mat_no).all()
 
                 record = []
-                # import transformers.sample_data.result as rs 
-                # record = rs.result
                 if len(_record) > 0:
                     for r in _record:
                         record.append({'session': r.session,'courseCode': r.courseCode, 'score': r.score})
@@ -725,12 +725,9 @@ class Worker(QObject):
                 master = mapper(file)
                 master.batchId = batch
                 results = master.get_data()
-                # import transformers.sample_data.result as sr
-                # results = sr.result
                 inc = math.floor(1000000 / max(len(results), 1))
                 
                 for data in results:
-                    # data['batchId'] = batch
                     record = object(data)
                     if (data.get('delete') != None and str(data.get('delete')).lower() == 'true') or self.app.delButton.isChecked():
                         delt = delete(data, self.session, False)
