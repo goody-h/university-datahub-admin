@@ -203,6 +203,13 @@ class Ui_centralWidget(object):
         self.label_5.setFont(font)
         self.label_5.setObjectName("label_5")
         self.formLayout.setWidget(4, QtWidgets.QFormLayout.LabelRole, self.label_5)
+
+#       
+        self.delButton = QtWidgets.QCheckBox(self.widget)
+        self.delButton.setObjectName("delButton")
+        self.formLayout.setWidget(5, QtWidgets.QFormLayout.LabelRole, self.delButton)
+
+
         self.uploadButton = QtWidgets.QPushButton(self.widget)
         # self.uploadButton.setMinimumSize(QtCore.QSize(36, 50))
         # self.uploadButton.setMaximumSize(QtCore.QSize(166, 16777215))
@@ -220,11 +227,11 @@ class Ui_centralWidget(object):
         font.setPointSize(11)
         self.label.setFont(font)
         self.label.setObjectName("label")
-        self.formLayout.setWidget(3, QtWidgets.QFormLayout.LabelRole, self.label)
+        self.formLayout.setWidget(2, QtWidgets.QFormLayout.LabelRole, self.label)
         self.selectFileButton = QtWidgets.QPushButton(self.widget)
         self.selectFileButton.setObjectName("selectFileButton")
         
-        self.formLayout.setWidget(3, QtWidgets.QFormLayout.FieldRole, self.selectFileButton)
+        self.formLayout.setWidget(2, QtWidgets.QFormLayout.FieldRole, self.selectFileButton)
         self.verticalLayout_4.addWidget(self.widget)
         self.horizontalLayout_2.addWidget(self.mastersheet, 0, QtCore.Qt.AlignLeft)
         self.spreadsheet = QtWidgets.QWidget(self.cardsFrame)
@@ -358,6 +365,7 @@ class Ui_centralWidget(object):
         self.label_b.setText(_translate("centralWidget", "or"))
         self.shButton.setText(_translate("centralWidget", "Generate spreadheet"))
         self.smButton.setText(_translate("centralWidget", "Generate summary"))
+        self.delButton.setText(_translate("centralWidget", "Delete"))
         
         self.matNumberLineEdit.setPlaceholderText(_translate("centralWidget", "Input MAT No.s (e.g U2015/3025001,...)"))
         self.genSpreadsheetButton.setText(_translate("centralWidget", "Generate"))
@@ -439,6 +447,7 @@ class Ui_centralWidget(object):
 
     def reset_files(self):
         self.files = None
+        self.delButton.setChecked(False)
         _translate = QtCore.QCoreApplication.translate
         self.label_5.setText(_translate("centralWidget", "0 file(s) selected"))
 
@@ -720,7 +729,7 @@ class Worker(QObject):
                 for data in results:
                     # data['batchId'] = batch
                     record = object(data)
-                    if data.get('delete') != None and str(data.get('delete')).lower() == 'true':
+                    if (data.get('delete') != None and str(data.get('delete')).lower() == 'true') or self.app.delButton.isChecked():
                         delt = delete(data, self.session, False)
                         if delt > 0:
                             deleted += 1
