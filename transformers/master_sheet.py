@@ -52,7 +52,7 @@ class MasterSheet(TableMapper):
         self.session = int(y2)
 
     def code_handler(self, r, c):
-        code = self._peek_right('^(_){0,1}[A-z]{3}(\s|_){0,1}\d{3}\.\d(_){0,1}$', r, c)
+        code = self._peek_right('^(_){0,1}[A-z]{3}(\s|_){0,1}\d{3}\.\d(_){0,1}', r, c)
         if code == None:
             return
         c1 = code.replace('_', '').replace(' ', '').lower()
