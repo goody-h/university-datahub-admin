@@ -624,7 +624,7 @@ class Worker(QObject):
             summary = SummarySheet()
             summary.generate(
                 responses, 
-                template = app_path('static/excel/templates/summarysheet_template.xlsm'),
+                template = app_path('static/excel/templates/summary_template.xlsm'),
                 filename = app_path(output)
             )
             self.update_progress.emit(1)
