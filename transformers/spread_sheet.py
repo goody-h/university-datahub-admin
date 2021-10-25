@@ -179,6 +179,12 @@ class SpreadSheet(object):
         user['name'] = (user['last_name'].upper() + ', ' + 
             user['first_name'].capitalize() + ' ' + user['other_names'].capitalize()).strip().rstrip(',')
 
+        if user['department'] == "MEG":
+            user['dept'] = "Department of Mechanical Engineering"
+        elif user['department'] == "MCT":
+            user['dept'] = "Department of Mechanical Engineering (Option: Mechatronics)"
+
+
         if template != None and template != '':
             _wb = load_workbook(template)
             self._wb = _wb

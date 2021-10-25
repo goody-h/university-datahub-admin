@@ -583,17 +583,19 @@ class Worker(QObject):
                     if student['department'] == None or student['department'] == '':
                         if self.app.mechRadioButton.isChecked():
                             courses = MEG
-                            student['department'] == 'MEG'
+                            student['department'] = 'MEG'
                         elif self.app.mctRadioButton.isChecked():
                             courses = MCT
-                            student['department'] == 'MCT'
+                            student['department'] = 'MCT'
                         else:
                             group['no_dept']['v'].append(mat_no)
                             self.update_progress.emit(1)
                             continue
                     elif re.search('(^meg$)|mechanical', student['department'].lower())  != None:
+                        student['department'] = 'MEG'
                         courses = MEG
                     elif re.search('(^mct$)|mechatronic', student['department'].lower())  != None:
+                        student['department'] = 'MCT'
                         courses = MCT
                     else:
                         group['no_courses']['v'].append('{}: {}'.format(mat_no, student['department']))
