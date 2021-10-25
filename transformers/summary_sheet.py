@@ -2,6 +2,10 @@ from openpyxl import load_workbook
 from openpyxl.styles.fonts import Font
 import re
 
+_sheetMap = {
+    'session': 'Q5', 'dept': 'A3', 'faculty': 'A2'
+}
+
 class SummarySheet(object):
     def __init__(self):
         super().__init__()
@@ -13,6 +17,7 @@ class SummarySheet(object):
         ws = _wb['Overall Summary']
         self.dpts = []
         self.sets = []
+        self.max_session = 0
 
         for res in results:
             tcu = 0
@@ -21,6 +26,7 @@ class SummarySheet(object):
             for value in res['level_data'].values():
                 tcu += value['tcu']
                 tqp += value['tqp']
+                self.max_session = max(value['session'], self.max_session)
             if tcu != 0:
                 cgpa = tqp / tcu
             scorer = [cgpa, 4.495, 3.495, 2.395, 1.495]
@@ -82,7 +88,19 @@ class SummarySheet(object):
     def _create_degree_result_(self, results):
         results.sort(key = lambda e: (-e['set'], e['user']['name'], -self.dpts.count(e['dpt']), e['sn']))
 
+        dept = ""
+        if len(results) > 0:
+            user = results[0]['user']
+            if user['department'] == "MEG":
+                dept = "Department of Mechanical Engineering (Mechanical Engineering Programme)".upper()
+            elif user['department'] == "MCT":
+                dept = "Department of Mechanical Engineering (Mechatronics Engineering Programme)".upper()
+
+
         ws = self._wb['Degree Result']
+
+        ws[_sheetMap['dept']] = dept
+        ws[_sheetMap['session']] = "SESSION: {}/{}".format(self.max_session -1, self.max_session)
 
         row_shift = max(len(results) - 1 + len(set(self.sets)), 0)
 

@@ -292,7 +292,7 @@ class SpreadSheet(object):
             level.commit()
         for level in levels.values():
             level.finish()
-            levels[level.level] = {'tcu': level.tcu, 'tqp': level.tqp}
+            levels[level.level] = {'tcu': level.tcu, 'tqp': level.tqp, 'session': level.session }
         if self._wb != None:
             unknown = _Level(None, None, None, None)
             unknown.commit_unknowns(self.unknown_results, self._wb)
