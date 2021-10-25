@@ -115,8 +115,10 @@ class _Level(object):
         
         if self.ws != None:
             if self.is_tail:
-                if ws['G' + str(23 + total_shift)].value != None:
-                    ws['G' + str(23 + total_shift)] = ws['G' + str(23 + total_shift)].value.replace('20', str(20 + total_shift))
+                if ws['G' + str(13 + total_shift + self.get_semesters_range())].value != None:
+                    ws['G' + str(13 + total_shift + self.get_semesters_range())] = ws['G' + str(13 + total_shift + 
+                            self.get_semesters_range())].value.replace(str(10 + self.get_semesters_range()),
+                                    str(10 + total_shift + self.get_semesters_range()))
         
         self.total_shift = total_shift
          
@@ -162,7 +164,7 @@ class _Level(object):
         self.tcu = tcu
 
         if self.is_lead:
-            self.shared_data.hod = str(22 + total_shift)
+            self.shared_data.hod = str(12 + total_shift + self.get_semesters_range())
         
     def _shift_range(self, range, bottom, top=0):
         rng = self._split_ref(range)
@@ -171,10 +173,13 @@ class _Level(object):
     def _split_ref(self, ref):
         return re.split('([A-Z]+)(\d+):([A-Z]+)(\d+)', ref)
 
+    def get_semesters_range(self):
+        return 5 * self.department.semesters
+
     def finish(self):
         if not self.is_lead and self.ws != None:
-            hod_cell = str(22 + self.total_shift)
-            self.ws['B' + hod_cell] = self.ws['B' + hod_cell].value.replace('22', self.shared_data.hod)
+            hod_cell = str(12 + self.total_shift + self.get_semesters_range())
+            self.ws['B' + hod_cell] = self.ws['B' + hod_cell].value.replace(str(12 + self.get_semesters_range()), self.shared_data.hod)
 
 
 class SpreadSheet(object):
@@ -194,6 +199,8 @@ class SpreadSheet(object):
             user['dept'] = department.department_long
         if department.hod != None:
             user['hod'] = department.hod
+
+        _sheetMap['hod'] = 'B{}'.format(12 + (5 * department.semesters))
 
         if filename != None and filename != '':
             _wb = load_workbook(app_path('static/excel/templates/{}.xlsx'.format(department.spreadsheet)))
