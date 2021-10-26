@@ -45,9 +45,9 @@ class CourseList(TableMapper):
         if self.sems == None:
             self.sems = 2
         if self.spreadsheet == None:
-            self.spreadsheet = 'spreadsheet_template_generic'
+            self.spreadsheet = 'spreadsheet_template'
         if self.summary == None:
-            self.summary = 'summary_template_generic'
+            self.summary = 'summary_template'
         if self.delete != None and str(self.delete).lower() == 'true':
             self.delete = 'true'
         if self.code != None:

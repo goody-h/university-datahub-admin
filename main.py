@@ -577,7 +577,7 @@ class Worker(QObject):
         spread_sheet = None
         output = None
         self.show_progress.emit(len(mat_list) + operations.count(True) + 1)
-
+        _department = None
         for mat_no in mat_list:
             if re.fullmatch('^[u,U]\d{4}/\d{7}$', mat_no) != None:
                 _record = self.session.query(Result).filter(Result.mat_no == mat_no).all()
@@ -620,6 +620,7 @@ class Worker(QObject):
                             continue
 
                     student['department'] = department.code
+                    _department = department
                     _courses = self.session.query(Course).filter(Course.department == department.code).all()
                     courses = {}
                     
@@ -661,12 +662,9 @@ class Worker(QObject):
         if gensm and len(group['success']['v']) > 0:
             output = folder + 'summary_'+ suffix + '.xlsm'
             summary = SummarySheet()
-            sum_name = 'summary_template'
-            if department != None:
-                sum_name = department.summary
             summary.generate(
-                responses, 
-                template = app_path('static/excel/templates/{}.xlsm'.format(sum_name)),
+                responses,
+                _department,
                 filename = app_path(output)
             )
             self.update_progress.emit(1)

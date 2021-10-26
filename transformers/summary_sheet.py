@@ -2,6 +2,8 @@ from openpyxl import load_workbook
 from openpyxl.styles.fonts import Font
 import re
 
+from utils import app_path
+
 _sheetMap = {
     'session': 'Q5', 'dept': 'A3', 'faculty': 'A2'
 }
@@ -10,11 +12,13 @@ class SummarySheet(object):
     def __init__(self):
         super().__init__()
 
-    def generate(self, results, template = '', filename = ''):
+    def generate(self, results, department, filename = ''):
+        template = app_path('static/excel/templates/{}.xlsm'.format(department.summary))
         _wb = load_workbook(template, read_only=False, keep_vba=True)
         self._wb = _wb
         response = {}
         ws = _wb['Overall Summary']
+        self.department = department
         self.dpts = []
         self.sets = []
         self.max_session = 0
@@ -60,7 +64,7 @@ class SummarySheet(object):
             ws['B' + str(i + top)] = out['user']['mat_no']
             ws['C' + str(i + top)] = out['user']['name']
 
-            for l in range(0, 7):
+            for l in range(0, self.department.levels):
                 level = out['level_data'].get(l + 1)
                 if level == None:
                     level = {'tcu': 0, 'tqp': 0}
@@ -68,10 +72,10 @@ class SummarySheet(object):
                 ws.cell(i + top, 5 + l * 2).value = level['tcu']
 
             ws.cell(i + top, 1).value = ws.cell(top, 1).value
-            for c in range(18, 22):
+            for c in range(4 + (2 * self.department.levels), 8 + (2 * self.department.levels)):
                 ws.cell(i + top, c).value = ws.cell(top, c).value
 
-            for c in range(1, 22):
+            for c in range(1, 8 + (2 * self.department.levels)):
                 ws.cell(i + top, c).style = ws.cell(top, c).style
             i += 1
         self._create_degree_result_(results)
@@ -117,9 +121,9 @@ class SummarySheet(object):
 
             ws['B' + str(i + top)] = out['user']['mat_no']
             ws['C' + str(i + top)] = out['user']['name']
-            ws['U' + str(i + top)] = out['result']['class']
+            ws.cell(i + top, 7 + (2 * self.department.levels)).value = out['result']['class']
 
-            for l in range(0, 7):
+            for l in range(0, self.department.levels):
                 level = out['level_data'].get(l + 1)
                 if level == None:
                     level = {'tcu': None, 'tqp': None}
@@ -132,10 +136,10 @@ class SummarySheet(object):
                 ws.cell(i + top, 5 + l * 2).value = level['tcu']
 
             ws.cell(i + top, 1).value = ws.cell(top, 1).value
-            for c in range(18, 21):
+            for c in range(4 + (2 * self.department.levels), 7 + (2 * self.department.levels)):
                 ws.cell(i + top, c).value = ws.cell(top, c).value
 
-            for c in range(1, 22):
+            for c in range(1, 8 + (2 * self.department.levels)):
                 ws.cell(i + top, c).style = ws.cell(top, c).style
             i += 1
 
