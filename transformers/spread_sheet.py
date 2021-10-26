@@ -231,8 +231,6 @@ class SpreadSheet(object):
             
             if sem_id > level_status['last_sem']:
                 level_status['last_sem'] = sem_id
-            if result['score'] < 40:
-                result['cu'] = None
             if map == None or (map['score'] < 40 and result['session'] > map['session']):
                 if map != None:
                     result['comment'] = (map['comment'] + '[ session: ' + str(map['session'] - 1) + '/' 
@@ -240,6 +238,7 @@ class SpreadSheet(object):
                     result['_session'] = result['session'] + 0.4
                     result['code'] += '*'
                     result['flags'].append('carryover')
+                    map['cu'] = None
                     result_map['{}_{}'.format(map['courseCode'], map['session'])] = map
                 result_map[result['courseCode']] = result
             else:
