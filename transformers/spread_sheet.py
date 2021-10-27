@@ -31,6 +31,7 @@ class _Level(object):
 
         self.tqp = 0
         self.tcu = 0
+        self.tco = 0
 
         ws = None
         self.tables = None
@@ -82,6 +83,7 @@ class _Level(object):
     def commit(self):
         tqp = 0
         tcu = 0
+        tco = 0
 
         self.tables = []
         refs = []
@@ -156,12 +158,15 @@ class _Level(object):
                     gp = scorer.index(score)
                     if result['flags'].count('carryover') > 0:
                         gp = min(3, gp)
+                    if score < 40:
+                        tco += unit
                     tcu += unit
                     tqp += gp * unit
                 i += 1
 
         self.tqp = tqp
         self.tcu = tcu
+        self.tco = tco
 
         if self.is_lead:
             self.shared_data.hod = str(12 + total_shift + self.get_semesters_range())
@@ -308,7 +313,7 @@ class SpreadSheet(object):
             level.commit()
         for level in levels.values():
             level.finish()
-            levels[level.level] = {'tcu': level.tcu, 'tqp': level.tqp, 'session': level.session }
+            levels[level.level] = {'tco': level.tco, 'tcu': level.tcu, 'tqp': level.tqp, 'session': level.session }
         if self._wb != None:
             unknown = _Level(None, None, None, None, None)
             unknown.commit_unknowns(self.unknown_results, self._wb)

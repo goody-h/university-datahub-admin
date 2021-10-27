@@ -26,17 +26,19 @@ class SummarySheet(object):
         for res in results:
             tcu = 0
             tqp = 0
+            tco  = 0
             cgpa = 0
             for value in res['level_data'].values():
                 tcu += value['tcu']
                 tqp += value['tqp']
+                tco += value['tco']
                 self.max_session = max(value['session'], self.max_session)
             if tcu != 0:
                 cgpa = tqp / tcu
             scorer = [cgpa, 4.495, 3.495, 2.395, 1.495]
             scorer.sort(key= lambda e: -e)
             d_class = ['11', '21', '22', '3rd', 'Pass'][scorer.index(cgpa)]
-            res['result'] = {'cgpa': cgpa, 'tcu': tcu, 'tqp': tqp, 'class': d_class}
+            res['result'] = {'cgpa': cgpa, 'tco': tco, 'tcu': tcu, 'tqp': tqp, 'class': d_class}
             sect = re.split('^[u,U](\d{4})/(\d{4})(\d{3})$', res['user']['mat_no'])
             res['set'] = int(sect[1])
             self.sets.append(res['set'])
@@ -44,7 +46,7 @@ class SummarySheet(object):
             self.dpts.append(res['dpt'])
             res['sn'] = int(sect[3])
             
-        results.sort(key = lambda e: (-e['result']['cgpa'], -e['result']['tqp']))
+        results.sort(key = lambda e: (-e['result']['cgpa'], -e['result']['tqp'], e['result']['tco']))
         row_shift = max(len(results) - 1, 0)
 
         table = ws.tables.get('SummaryTable')
@@ -72,11 +74,12 @@ class SummarySheet(object):
                 ws.cell(i + top, 5 + l * 2).value = level['tcu']
 
             ws.cell(i + top, 1).value = ws.cell(top, 1).value
-            for c in range(4 + (2 * self.department.levels), 8 + (2 * self.department.levels)):
+            for c in range(4 + (2 * self.department.levels), 9 + (2 * self.department.levels)):
                 ws.cell(i + top, c).value = ws.cell(top, c).value
 
-            for c in range(1, 8 + (2 * self.department.levels)):
+            for c in range(1, 9 + (2 * self.department.levels)):
                 ws.cell(i + top, c).style = ws.cell(top, c).style
+            ws.cell(i + top, 6 + (2 * self.department.levels)).value = out['result']['tco']
             i += 1
         self._create_degree_result_(results)
         try:
