@@ -14,3 +14,4 @@ class Department(Base):
     levels = Column(Integer)
     summary = Column(String)
     spreadsheet = Column(String)
+    max_cu = Column(Integer)

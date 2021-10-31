@@ -598,7 +598,7 @@ class Worker(QObject):
                     
                     if len(_courses) > 0:
                         for course in _courses:
-                            courses[str(course.id)] = { 'pair': course.pair,  'level': course.level * 100, 'sem': course.sem, 'title': course.title, 'code': course.code, 'cu': course.cu }
+                            courses[str(course.id)] = { 'properties': course.properties,  'level': course.level * 100, 'sem': course.sem, 'title': course.title, 'code': course.code, 'cu': course.cu }
                     else:
                         group['no_courses']['v'].append('{}: {}'.format(mat_no, student['department']))
                         group['no_courses']['s'] = 'No course list available for department, {}'.format(student['department'])
@@ -622,7 +622,7 @@ class Worker(QObject):
                     else:
                         responses.append(response)
                         total_r = len(spread_sheet.scored_results)
-                        unkown_r = len(spread_sheet.unknown_results)
+                        unkown_r = len(spread_sheet.invalid_results)
                         group['success']['v'].append('{}: {}/{}'.format(mat_no, total_r - unkown_r, total_r))
                 else:
                     group['no_result']['v'].append(mat_no)
@@ -647,7 +647,7 @@ class Worker(QObject):
                 if operations.count(True) > 1:
                     path = folder
                 total_r = len(spread_sheet.scored_results)
-                unkown_r = len(spread_sheet.unknown_results)
+                unkown_r = len(spread_sheet.invalid_results)
                 self.show_message.emit('Operation complete!\n\nResult count: {}/{}\n\nSaved at:\n{}'.format(total_r - unkown_r, total_r, app_path(path)), False)
             else:
                 for key in group.keys():
@@ -775,7 +775,7 @@ class Worker(QObject):
                 code = data['code'],
                 title = data['title'],
                 cu = data['cu'],
-                pair = data['pair'],
+                properties = data['properties'],
                 level = data['level'],
                 sem = data['sem'],
                 department = data['department'],
@@ -792,6 +792,7 @@ class Worker(QObject):
                 levels = data['levels'],
                 summary = data['summary'],
                 spreadsheet = data['spreadsheet'],
+                max_cu = data['max_cu']
             )
 
     def biodata_upload(self):

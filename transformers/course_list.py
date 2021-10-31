@@ -12,7 +12,7 @@ class CourseList(TableMapper):
                 {'search': 'cu', 'key': 'cu'},
                 {'search': '^level$', 'key': 'level'},
                 {'search': '^semester$', 'key': 'sem'},
-                {'search': '(elective|pair)', 'key': 'pair'},
+                {'search': 'properties', 'key': 'properties'},
             ],
             header_map = [
                 {'search': '^faculty:', 'exec': self.faculty_handler},
@@ -25,6 +25,7 @@ class CourseList(TableMapper):
                 {'search': 'spreadsheet:', 'exec': self.spreadsheet_handler},
                 {'search': 'summary:', 'exec': self.summary_handler},
                 {'search': '^delete dept:', 'exec': self.delete_handler},
+                {'search': '^max cu::', 'exec': self.cu_handler},
             ])
         
     def __pre_sheet_call__(self):
@@ -38,6 +39,7 @@ class CourseList(TableMapper):
         self.spreadsheet = None
         self.summary = None
         self.delete = None
+        self.max_cu = None
 
     def __post_header_call__(self):
         if self.levels == None:
@@ -52,20 +54,23 @@ class CourseList(TableMapper):
             self.delete = 'true'
         if self.code != None:
             self.code.upper()
+        if self.max_cu == None:
+            self.max_cu = 45
         
     def __is_valid_header__(self):
         return self.dept != None and self.code != None
 
     def __modify_row__(self, row):
         row.update({'department': self.code, 'type': 'course' })
-        if row.get('pair') == None or re.fullmatch('^\d+$',str(row.get('cu'))) == None:
-            row['pair'] = 0
         
         c1 = row['code'].replace('_', '').replace(' ', '').lower()
         c2 = re.split('([a-z]{3})(\d{3})\.(\d)', c1)
         row['code'] = c2[1].upper() + ' ' + c2[2] + '.' + c2[3]
         row['id'] = c2[1] + '_' + c2[2] + '_' + c2[3]
         row['courseId'] = row['id'] + '_' + self.code
+
+        if row['properties'] != None:
+            row['properties'] = row['properties'].strip().rstrip(',').lower()
 
         return ((row.get('title') != None and row.get('title') != ''
             and row.get('cu') != None and re.fullmatch('^\d+\.{0,1}\d*$',str(row.get('cu'))) != None
@@ -77,7 +82,7 @@ class CourseList(TableMapper):
         if self.__is_valid_header__() or (self.delete == 'true' and self.code != None):
             self.data_rows.insert(0, {'type': 'department', 'faculty': self.faculty,
              'hod': self.hod, 'department': self.dept, 'department_long': self.dept_l, 
-             'levels': self.levels,
+             'levels': self.levels, 'max_cu': self.max_cu,
              'semesters': self.sems, 'code': self.code, 'spreadsheet': self.spreadsheet,
              'summary': self.summary, 'id': self.code, 'delete': self.delete })
 
@@ -101,6 +106,8 @@ class CourseList(TableMapper):
         self.summary = self.text_handler(r, c)
     def delete_handler(self, r, c):
         self.delete = self.text_handler(r, c)
+    def cu_handler(self, r, c):
+        self.max_cu = self.digit_handler(r, c)
     def text_handler(self, r, c):
         s = self._peek_right('.+', r, c)
         if s is str:

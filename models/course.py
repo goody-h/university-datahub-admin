@@ -9,7 +9,7 @@ class Course(Base):
     code = Column(String)
     title = Column(String)
     cu = Column(Integer)
-    pair = Column(Integer)
+    properties = Column(String)
     level = Column(Integer)
     sem = Column(Integer)
     department = Column(String)

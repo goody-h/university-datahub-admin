@@ -28,6 +28,7 @@ class _Level(object):
         self.is_lead = is_lead
         self.is_tail = is_tail
         self.department = department
+        self.wb = wb
 
         self.tqp = 0
         self.tcu = 0
@@ -42,18 +43,61 @@ class _Level(object):
             for i in range(0, department.semesters):
                 self.tables.append(ws.tables.get('S{}.{}'.format(level, i + 1)))
         self.ws = ws
+        self.result_map = {}
+        self.props = []
+        self.reject = []
+        if shared_data != None:
+            self.reject = shared_data.level_status['reject']
+
+
+    def evaluate_results(self):
+        results = []
+        for sem in self.results:
+            sem.sort(key = lambda i: (i['_session'], i['code']))
+            tcu = 0
+            for result in sem:
+                au_prop = re.split('(add-unit)', str(result['properties']))
+                if len(au_prop) > 1 or result.get('cu') == None:
+                    continue
+                tcu += result['cu']
+                if result['level'] == self.level:
+                    continue
+            results.extend(sem)
+        return results
+
     
     def add_result(self, result, semester):
         if semester > 0:
             if semester > len(self.results):
                 for i in range(semester - len(self.results)):
                     self.results.append([])
-            self.results[semester - 1].append(result)
+            
+            ne_prop = re.split('(no-extra)', str(result['properties']))
+            
+            if len(ne_prop) > 1 and self.props.count('no-extra') == 0 and result['level'] == self.level * 100:
+                self.props.append('no-extra')
+                for res in self.results[semester - 1]:
+                    res['reason'] = 'No extra courses allowed in level {}, semester {}'.format(self.level * 100, semester)
+                    self.result_map.pop(res['courseCode'])
+                self.reject.extend(self.results[semester - 1])
+                self.results[semester - 1].clear()
+
+            if self.props.count('no-extra') == 0 or len(ne_prop) > 1:
+                self.results[semester - 1].append(result)
+                self.result_map[result['courseCode']] = result
+            else:
+                result['reason'] = 'No extra courses allowed in level {}, semester {}'.format(self.level * 100, semester)
+                self.reject.append(result)
     
-    def commit_unknowns(self, results, wb):
-        if len(results) > 0 and wb['Unknown Courses'] != None and wb['Unknown Courses'].tables.get('Unknown') != None:
-            ws = wb['Unknown Courses']
-            table = ws.tables.get('Unknown')
+    def commit_unknowns(self, results, wb, has_reason = False):
+        b = 'Unknown Courses'
+        t = 'Unknown'
+        if has_reason:
+            b = 'Flagged Results'
+            t = "Flagged"
+        if len(results) > 0 and wb[b] != None and wb[b].tables.get(t) != None:
+            ws = wb[b]
+            table = ws.tables.get(t)
             ws[_sheetMap['session']] = ' '
             ref = table.ref
             totals = table.totalsRowCount
@@ -64,7 +108,7 @@ class _Level(object):
             top = int(self._split_ref(table.ref)[2]) + 1
             i = 0
             for result in results:
-                ws['A' + str(i + top)] = result.get('courseCode')
+                ws['A' + str(i + top)] = re.split('&None&|&', '&{}&{}'.format(result.get('code'), result.get('courseCode')))[1]
                 if result.get('title') == None:
                     result['title'] = '?'
                 ws['B' + str(i + top)] = result.get('title')
@@ -73,7 +117,9 @@ class _Level(object):
                 ws['C' + str(i + top)] = result.get('cu')
                 ws['D' + str(i + top)] = result.get('score')
                 ws['F' + str(i + top)] = str(result.get('session') - 1) + '/' + str(result.get('session'))
-                for c in range(1, 7):
+                ws['G' + str(i + top)] = result.get('reason')
+                
+                for c in range(1, 8):
                     ws.cell(i + top, c).style = ws.cell(top, c).style
                 for c in range(5, 6):
                     ws.cell(i + top, c).value = ws.cell(top, c).value
@@ -126,15 +172,18 @@ class _Level(object):
          
         for c in range(len(self.results)):
             i = 0
+            self.results[c].sort(key = lambda i: (i['_session'], i['code']))
             for result in self.results[c]:
                 score = result.get('score')
                 unit = result['cu']
 
-                if result['pair'] > 0:
+                prop = re.split('(elective-pair):(\d+)', str(result['properties']))
+                if len(prop) > 1:
+                    elective_pair = int(prop[2])
                     sem_id = result['level'] + result['sem']
                     level_status = self.shared_data.level_status
                     if (level_status['electives'].get(sem_id) != None and 
-                        len(set(level_status['electives'][sem_id])) > result['pair']
+                        len(set(level_status['electives'][sem_id])) > elective_pair
                     ):
                         result['comment'] += 'flag: Excess electives {}\n'.format(
                             set(level_status['electives'][sem_id]))
@@ -186,14 +235,191 @@ class _Level(object):
             hod_cell = str(12 + self.total_shift + self.get_semesters_range())
             self.ws['B' + hod_cell] = self.ws['B' + hod_cell].value.replace(str(12 + self.get_semesters_range()), self.shared_data.hod)
 
+class ResultFilter():
+    def __init__(self, shared_data):
+        self.hold = []
+        self.shared_data = shared_data
+        self.reject = shared_data['reject']
+    def evaluate_result(self, result):
+        return True
+    def release_hold(self):
+        hold = self.hold
+        self.hold = []
+        return hold
+
+class HeadFilter(ResultFilter):
+    def __init__(self, shared_data, results):
+        super().__init__(shared_data)
+        self.hold = results
+
+class CourseFilter(ResultFilter):
+    def __init__(self, shared_data, courses, level_count, wb):
+        super().__init__(shared_data)
+        self.courses = courses
+        self.level_count = level_count
+        self.wb = wb
+        self.reject = []
+
+    def evaluate_result(self, result):
+        course = self.courses.get(result['courseCode'])
+        if course == None:
+            self.reject.append(result)
+            return False
+        result.update(course)
+        result.update({'_session': result['session'], 'comment': '', 'flags': []})
+        l_session = self.shared_data['sessions'].get(result['session'])
+        sem_id = result['level'] + result['sem']
+        if l_session == None or sem_id > l_session:
+            self.shared_data['sessions'][result['session']] = sem_id
+        if sem_id > self.shared_data['last_sem']:
+            self.shared_data['last_sem'] = sem_id
+        self.hold.append(result)
+        return False
+
+    def release_hold(self):
+        self.shared_data.update(session_utils.rectify(self.shared_data['sessions'], self.level_count))
+        if self.wb != None:
+            unknown = _Level(None, None, None, None, None)
+            unknown.commit_unknowns(self.reject, self.wb)
+        return super().release_hold()
+
+class RetakeFilter(ResultFilter):
+    def __init__(self, shared_data):
+        super().__init__(shared_data)
+        self.result_map = {}
+
+    def evaluate_result(self, result):
+        map = self.result_map.get(result['courseCode'])
+        if map == None or (map['score'] < 40 and result['session'] > map['session']):
+            if map != None:
+                result['comment'] = (map['comment'] + '[ session: ' + str(map['session'] - 1) + '/' 
+                    + str(map['session']) + ', score: ' + str(map['score']) + ']\n')
+                result['_session'] = result['session'] + 0.4
+                result['code'] += '*'
+                result['flags'].append('carryover')
+                map['cu'] = None
+            elif result['level'] != self.shared_data['sessions'].index(result['session']) + 1:
+                result['_session'] = result['session'] + 0.2
+
+            self.result_map[result['courseCode']] = result
+        else:
+            self.result_map[result['courseCode']]['comment'] = (map['comment'] + 'flag* [ session: ' + str(result['session'] - 1) + '/' 
+                + str(result['session']) + ', score: ' + str(result['score']) + ']\n')
+            result['reason'] = 'Course has already been passed in session {}/{}'.format(map['session'] - 1, map['session'])
+            self.reject.append(result)
+            return False
+        return super().evaluate_result(result)
+
+class ElectiveFilter(ResultFilter):
+    def evaluate_result(self, result):
+        sem_id = result['level'] + result['sem']
+        prop = re.split('(elective-pair):(\d+)', str(result['properties']))
+        if len(prop) > 1:
+            result['_session'] = result['session'] + 0.1
+            if self.shared_data['electives'].get(sem_id) == None:
+                self.shared_data['electives'][sem_id] = [result['courseCode']]
+            else:
+                self.shared_data['electives'][sem_id].append(result['courseCode'])
+            self.hold.append(result)
+            return False
+        return super().evaluate_result(result)
+
+    def release_hold(self):
+        # TODO check if elective is excess, and act based on policy
+        return super().release_hold()
+
+class LevelFilter(ResultFilter):
+    def __init__(self, shared_data, levels, wb, department):
+        super().__init__(shared_data)
+        self.levels = levels
+        self.level_data = _SharedData(self.shared_data)
+        self.department = department
+        self.wb = wb
+
+    def evaluate_result(self, result):
+        # pass the result to a level object
+        level = self.shared_data['sessions'].index(result['session']) + 1
+        sem = result['sem']
+        if self.levels.get(level) == None:
+            self.levels[level] = _Level(level, result['session'], self.wb, self.level_data, self.department, is_lead=level == 1, is_tail=level>=4)
+        self.levels[level].add_result(result, sem)
+        return False
+    
+    def release_hold(self):
+        # perform semester level filtering
+        results = []
+        for level in self.levels.values():
+            _results = level.evaluate_results()
+            results.extend(_results)
+        if len(self.levels) == 0 and len(self.shared_data['sessions']) > 0:
+            self.levels[level] = _Level(1, self.shared_data['sessions'][0], self.wb, self.level_data, self.department, is_lead=True, is_tail=False)
+        self.hold = results
+        return []
+
+class MissingFilter(ResultFilter):
+    def __init__(self, shared_data, levels, courses):
+        super().__init__(shared_data)
+        self.levels = levels
+        self.courses = courses
+
+    def release_hold(self):
+        results = {}
+        courses = self.courses
+        department = None
+        wb = None
+        level_data = None
+        for level in self.levels.values():
+            department = level.department
+            wb = level.wb
+            level_data = level.shared_data
+            results.update(level.result_map)
+
+        for key in courses.keys():
+            sem_id = courses[key]['level'] + courses[key]['sem']
+            elective_pair = 0
+            prop = re.split('(elective-pair):(\d+)', str(courses[key]['properties']))
+            if len(prop) > 1:
+                elective_pair = int(prop[2])
+            if (results.get(key) == None and sem_id <= self.shared_data['last_sem']
+                and (elective_pair == 0 or self.shared_data['electives'].get(sem_id) == None or 
+                len(set(self.shared_data['electives'][sem_id])) < elective_pair)
+            ):
+                result = {}
+                result.update(courses[key])
+                session = self.shared_data['sessions'][int(courses[key]['level']/100) - 1]
+                result.update({'courseCode': key, 'cu': None, '_session': session + 0.5, 'session': session })
+
+                level = self.shared_data['sessions'].index(result['session']) + 1
+                sem = result['sem']
+                if self.levels.get(level) == None:
+                    self.levels[level] = _Level(level, result['session'], wb, level_data, department, is_lead=level == 1, is_tail=level>=4)
+                self.levels[level].add_result(result, sem)
+
+        for level in self.levels.values():
+            level.commit()
+        for level in self.levels.values():
+            level.finish()
+            self.levels[level.level] = {'tco': level.tco, 'tcu': level.tcu, 'tqp': level.tqp, 'session': level.session }
+        if wb != None:
+            unknown = _Level(None, None, None, None, None)
+            unknown.commit_unknowns(self.reject, wb, has_reason = True)
+        return super().release_hold()
 
 class SpreadSheet(object):
+
+    def evaluate(self, filters, index = 0):
+        for result in filters[index].release_hold():
+            for i in range(index + 1, len(filters)):
+                if not filters[i].evaluate_result(result):
+                    break
+        if index < len(filters) - 1:
+            self.evaluate(filters, index + 1)
 
     def __init__(self):
         super().__init__()
         self._wb = None
         self.scored_results = []
-        self.unknown_results = []
+        self.invalid_results = []
 
     def generate(self, user, results, courses, department, filename = ''):
         user['name'] = (user['last_name'].upper() + ', ' + 
@@ -215,71 +441,23 @@ class SpreadSheet(object):
                 if _sheetMap.get(key) != None:
                     _wb['L100'][_sheetMap[key]] = user[key]
         
-        level_status = { 'sessions': {}, 'last_sem': 100, 'electives': {} }
-        result_map = {}
+        shared_data = { 'sessions': {}, 'last_sem': 100, 'electives': {}, 'reject': [] }
+        levels = {}
+        head_filter = HeadFilter(shared_data, results)
+        course_filter = CourseFilter(shared_data, courses, department.levels, self._wb)
+        retake_filter = RetakeFilter(shared_data)
+        elect_filter = ElectiveFilter(shared_data)
+        level_filter = LevelFilter(shared_data, levels, self._wb, department)
+        miss_filter = MissingFilter(shared_data, levels, courses)
 
-        # step 1: remove carry-overs
-        for result in results:
-            #TODO sort out unknown courses
-            course = courses.get(result['courseCode'])
-            if course == None:
-                self.unknown_results.append(result)
-                continue
-            result.update(course)
-            result.update({'_session': result['session'], 'comment': '', 'flags': []})
-            map = result_map.get(result['courseCode'])
-
-            l_session = level_status['sessions'].get(result['session'])
-            sem_id = result['level'] + result['sem']
-            if l_session == None or sem_id > l_session:
-                level_status['sessions'][result['session']] = sem_id
+        self.evaluate([head_filter, course_filter, retake_filter, elect_filter, level_filter, miss_filter])
             
-            if sem_id > level_status['last_sem']:
-                level_status['last_sem'] = sem_id
-            if map == None or (map['score'] < 40 and result['session'] > map['session']):
-                if map != None:
-                    result['comment'] = (map['comment'] + '[ session: ' + str(map['session'] - 1) + '/' 
-                        + str(map['session']) + ', score: ' + str(map['score']) + ']\n')
-                    result['_session'] = result['session'] + 0.4
-                    result['code'] += '*'
-                    result['flags'].append('carryover')
-                    map['cu'] = None
-                    result_map['{}_{}'.format(map['courseCode'], map['session'])] = map
-                result_map[result['courseCode']] = result
-            else:
-                result_map[result['courseCode']]['comment'] = (map['comment'] + 'flag* [ session: ' + str(result['session'] - 1) + '/' 
-                    + str(result['session']) + ', score: ' + str(result['score']) + ']\n')
-            if result['pair'] > 0:
-                result['_session'] = result['session'] + 0.3
-                if level_status['electives'].get(sem_id) == None:
-                    level_status['electives'][sem_id] = [result['courseCode']]
-                else:
-                    level_status['electives'][sem_id].append(result['courseCode'])
+        self.scored_results = results
+        self.invalid_results = []
+        self.invalid_results.extend(course_filter.reject)
+        self.invalid_results.extend(shared_data['reject'])
 
-        self.scored_results.extend(results)
-
-        level_status.update(session_utils.rectify(level_status['sessions'], department.levels))
-
-        # step 2: add missing courses till last semester    
-        for key in courses.keys():
-            sem_id = courses[key]['level'] + courses[key]['sem']
-            if (result_map.get(key) == None and sem_id <= level_status['last_sem'] 
-                and (courses[key]['pair'] == 0 or level_status['electives'].get(sem_id) == None or 
-                len(set(level_status['electives'][sem_id])) < courses[key]['pair'])
-            ):
-                result_map[key] = {}
-                result_map[key].update(courses[key])
-                session = level_status['sessions'][int(courses[key]['level']/100) - 1]
-                result_map[key].update({'courseCode': key, 'cu': None, '_session': session + 0.5, 'session': session })
-
-        final_results = []
-        final_results.extend(result_map.values())
-        final_results.sort(key = lambda i: (i['_session'], i['code']))
-
-        # step 3: write reuluts to sheet
-        level_data = self._write_results(final_results, level_status, department)
-        response = {'status': 'success', 'message': '', 'level_data': level_data, 'user': user}
-
+        response = {'status': 'success', 'message': '', 'level_data': levels, 'user': user}
         print('Written {} results'.format(len(self.scored_results)))
 
         # step 4: remove unused sheets
@@ -298,55 +476,3 @@ class SpreadSheet(object):
                 _wb = None
 
         return response
-
-
-    def _write_results(self, results, status, department):
-        levels = {}
-        shared_data = _SharedData(status)
-        for result in results:
-            level = status['sessions'].index(result['session']) + 1
-            sem = result['sem']
-            if levels.get(level) == None:
-                levels[level] = _Level(level, result['session'], self._wb, shared_data, department, is_lead=level == 1, is_tail=level>=4)
-            levels[level].add_result(result, sem)
-        for level in levels.values():
-            level.commit()
-        for level in levels.values():
-            level.finish()
-            levels[level.level] = {'tco': level.tco, 'tcu': level.tcu, 'tqp': level.tqp, 'session': level.session }
-        if self._wb != None:
-            unknown = _Level(None, None, None, None, None)
-            unknown.commit_unknowns(self.unknown_results, self._wb)
-        return levels
-
-
-if __name__ == '__main__':
-    # Run a test using sample data
-    from sample_data.result import user, result
-    from sample_data.courses import MEG, MCT
-    import os
-
-    # sort results by only session
-    result.sort(key = lambda i: (i['session']))
-    courses = MEG
-    root = ''
-
-    if user['department'] == 'MCT':
-        courses = MCT
-    
-    if __file__ != None:
-        root = re.sub('/[^/]+$', '/', __file__.replace('\\', '/')) + '../'
-    
-    try:
-        os.mkdir(root + 'output')
-        print('output directory created')
-    except:
-        print('output directory already exists, skipping')
-
-    spread_sheet = SpreadSheet()
-    spread_sheet.generate(
-        user, result, courses, 
-        filename=root + 'output/sample_spreadsheet.xlsx',
-        template=root + 'static/excel/spreadsheet_template.xlsx',
-    )
-
