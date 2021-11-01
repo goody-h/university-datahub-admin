@@ -25,7 +25,7 @@ class CourseList(TableMapper):
                 {'search': 'spreadsheet:', 'exec': self.spreadsheet_handler},
                 {'search': 'summary:', 'exec': self.summary_handler},
                 {'search': '^delete dept:', 'exec': self.delete_handler},
-                {'search': '^max cu::', 'exec': self.cu_handler},
+                {'search': '^max cu:', 'exec': self.cu_handler},
             ])
         
     def __pre_sheet_call__(self):
@@ -55,7 +55,7 @@ class CourseList(TableMapper):
         if self.code != None:
             self.code.upper()
         if self.max_cu == None:
-            self.max_cu = 45
+            self.max_cu = 24
         
     def __is_valid_header__(self):
         return self.dept != None and self.code != None

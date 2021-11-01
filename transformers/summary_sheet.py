@@ -74,12 +74,14 @@ class SummarySheet(object):
                 ws.cell(i + top, 5 + l * 2).value = level['tcu']
 
             ws.cell(i + top, 1).value = ws.cell(top, 1).value
-            for c in range(4 + (2 * self.department.levels), 9 + (2 * self.department.levels)):
-                ws.cell(i + top, c).value = ws.cell(top, c).value
+            for c in range(4 + (2 * self.department.levels), 10 + (2 * self.department.levels)):
+                if re.match('(review|carryover)', str(ws.cell(top - 1, c).value).lower()) == None:
+                    ws.cell(i + top, c).value = ws.cell(top, c).value
 
-            for c in range(1, 9 + (2 * self.department.levels)):
+            for c in range(1, 10 + (2 * self.department.levels)):
                 ws.cell(i + top, c).style = ws.cell(top, c).style
             ws.cell(i + top, 6 + (2 * self.department.levels)).value = out['result']['tco']
+            ws.cell(i + top, 7 + (2 * self.department.levels)).value = out.get('review')
             i += 1
         self._create_degree_result_(results)
         try:
