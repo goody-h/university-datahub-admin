@@ -762,7 +762,7 @@ class Worker(QObject):
             
     def del_dept(self, data, session, isUpdate):
         if data['type'] == 'course':
-            return session.query(Course).filter(Course.id == data['id']).delete()
+            return session.query(Course).filter(Course.id == data['courseId']).delete()
         else:
             c = session.query(Course).filter(Course.department == data['id']).delete()
             return int(session.query(Department).filter(Department.id == data['id']).delete()) + int(c)
