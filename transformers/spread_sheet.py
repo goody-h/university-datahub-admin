@@ -320,7 +320,7 @@ class CarryoverFilter(ResultFilter):
                 result['code'] += '*'
                 result['flags'].append('carryover')
                 map['cu'] = None
-            elif result['level'] != self.cache['sessions'].index(result['session']) + 1:
+            elif result['level'] / 100 != self.cache['sessions'].index(result['session']) + 1:
                 result['_session'] = result['session'] + 0.2
 
             self.data[result['courseCode']] = result
