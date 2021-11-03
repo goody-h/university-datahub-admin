@@ -557,7 +557,7 @@ class Worker(QObject):
                 record = []
                 if len(_record) > 0:
                     for r in _record:
-                        record.append({'session': r.session,'courseCode': r.courseCode, 'score': r.score})
+                        record.append({'session': r.session,'courseCode': r.courseCode, 'score': r.score, 'mat_no': r.mat_no})
 
                     record.sort(key = lambda i: (i['session']))
 
