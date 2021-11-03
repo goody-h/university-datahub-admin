@@ -202,7 +202,7 @@ class _Level(object):
                     if result['flags'].count('carryover') > 0:
                         gp = min(3, gp)
                     if score < 40:
-                        tco += unit
+                        tco += 1
                     tcu += unit
                     tqp += gp * unit
                 i += 1
