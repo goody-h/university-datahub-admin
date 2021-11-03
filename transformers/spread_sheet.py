@@ -297,6 +297,14 @@ class CourseFilter(ResultFilter):
                 unknown.commit_unknowns(self.reject, self.wb)
         return super().release_hold()
 
+class SessionFilter(ResultFilter):
+    def _evaluate_result(self, result):
+        if self.cache['sessions'].count(result['session']) == 0:
+            result['reason'] = 'Maximum academic sessions exceeded'
+            self.reject.append(result)
+            return False
+        return super()._evaluate_result(result)
+
 class CarryoverFilter(ResultFilter):
     def reset_filter(self):
         self.cache['result_map'] = {}
@@ -489,6 +497,7 @@ class SpreadSheet(object):
         cache = {}
         levels = {}
         course_filter = CourseFilter(cache, courses, department, self._wb)
+        session_filter = SessionFilter(cache)
         carryover_filter = CarryoverFilter(cache)
         retake_filter = RetakeFilter(cache)
         elect_filter = ElectiveFilter(cache)
@@ -497,7 +506,7 @@ class SpreadSheet(object):
 
         self.evaluate([
             HeadFilter(cache, results),
-            course_filter, carryover_filter, level_filter,
+            course_filter, session_filter, carryover_filter, level_filter,
             HeadFilter(cache),
             course_filter, carryover_filter, retake_filter, elect_filter, level_filter, miss_filter,
             StopFilter(cache, levels, self._wb)
