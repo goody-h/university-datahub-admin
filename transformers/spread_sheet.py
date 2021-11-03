@@ -81,8 +81,8 @@ class _Level(object):
                 self.props.append('no-extra{}'.format(semester))
                 self.sem_tcu[semester] = 0
                 for res in self.results[semester - 1]:
-                    res['reason'] = 'No extra courses allowed in level {}, semester {}'.format(self.level * 100, semester)
-                    self.result_map.pop(res['courseCode'])
+                    res['reason'] += '[No extra courses allowed in level {}, semester {}] \n'.format(self.level * 100, semester)
+                    self.result_map[res['courseCode']] = None
                 self.reject.extend(self.results[semester - 1])
                 self.results[semester - 1].clear()
 
@@ -93,7 +93,7 @@ class _Level(object):
                 if not (len(au_prop) > 1 or result.get('cu') == None):
                     self.sem_tcu[semester] += result['cu']
             else:
-                result['reason'] = 'No extra courses allowed in level {}, semester {}'.format(self.level * 100, semester)
+                result['reason'] += '[No extra courses allowed in level {}, semester {}] \n'.format(self.level * 100, semester)
                 self.reject.append(result)
     
     def commit_unknowns(self, results, wb, has_reason = False):
@@ -124,7 +124,7 @@ class _Level(object):
                 ws['C' + str(i + top)] = result.get('cu')
                 ws['D' + str(i + top)] = result.get('score')
                 ws['F' + str(i + top)] = str(result.get('session') - 1) + '/' + str(result.get('session'))
-                ws['G' + str(i + top)] = result.get('reason')
+                ws['G' + str(i + top)] = result.get('reason').rstrip(' \n')
                 
                 for c in range(1, 8):
                     ws.cell(i + top, c).style = ws.cell(top, c).style
@@ -300,7 +300,7 @@ class CourseFilter(ResultFilter):
 class SessionFilter(ResultFilter):
     def _evaluate_result(self, result):
         if self.cache['sessions'].count(result['session']) == 0:
-            result['reason'] = 'Maximum academic sessions exceeded'
+            result['reason'] += '[Maximum academic sessions exceeded] \n'
             self.reject.append(result)
             return False
         return super()._evaluate_result(result)
@@ -327,6 +327,10 @@ class CarryoverFilter(ResultFilter):
         return super()._evaluate_result(result)
 
 class RetakeFilter(ResultFilter):
+    def __init__(self, cache, flag_only = False):
+        super().__init__(cache)
+        self.flag_only = flag_only
+
     def reset_filter(self):
         if self.cache.get('result_map') == None:
             self.cache['result_map'] = {}
@@ -337,9 +341,10 @@ class RetakeFilter(ResultFilter):
         if not (map == None or (map['score'] < 40 and result['session'] > map['session'])) and result['session'] != map['session']:
             self.data[result['courseCode']]['comment'] = (map['comment'] + 'flag* [ session: ' + str(result['session'] - 1) + '/' 
                 + str(result['session']) + ', score: ' + str(result['score']) + ']\n')
-            result['reason'] = 'Course has already been passed in session {}/{}'.format(map['session'] - 1, map['session'])
-            self.reject.append(result)
-            return False
+            result['reason'] += '[Course has already been passed in session {}/{}] \n'.format(map['session'] - 1, map['session'])
+            if not self.flag_only:
+                self.reject.append(result)
+                return False
         return super()._evaluate_result(result)
 
 
@@ -499,16 +504,17 @@ class SpreadSheet(object):
         course_filter = CourseFilter(cache, courses, department, self._wb)
         session_filter = SessionFilter(cache)
         carryover_filter = CarryoverFilter(cache)
-        retake_filter = RetakeFilter(cache)
+        retake_filter1 = RetakeFilter(cache, flag_only= True)
+        retake_filter2 = RetakeFilter(cache)
         elect_filter = ElectiveFilter(cache)
         level_filter = LevelFilter(cache, levels, self._wb, department)
         miss_filter = MissingFilter(cache, levels, courses)
 
         self.evaluate([
             HeadFilter(cache, results),
-            course_filter, session_filter, carryover_filter, level_filter,
+            course_filter, session_filter, carryover_filter, retake_filter1, level_filter,
             HeadFilter(cache),
-            course_filter, carryover_filter, retake_filter, elect_filter, level_filter, miss_filter,
+            course_filter, carryover_filter, retake_filter2, elect_filter, level_filter, miss_filter,
             StopFilter(cache, levels, self._wb)
         ])
          
