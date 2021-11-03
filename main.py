@@ -604,7 +604,6 @@ class Worker(QObject):
                         group['no_courses']['s'] = 'No course list available for department, {}'.format(student['department'])
                         self.update_progress.emit(1)
                         continue
-                    print(courses)
                     spread_sheet = SpreadSheet()
                     output = folder + mat_no.replace('/', '-') + '_spreadsheet_'+ suffix + '.xlsx'
                     filename = app_path(output)
