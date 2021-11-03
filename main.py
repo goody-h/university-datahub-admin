@@ -187,7 +187,7 @@ class Ui_centralWidget(object):
 #       
         self.delButton = QtWidgets.QCheckBox(self.widget)
         self.delButton.setObjectName("delButton")
-        self.formLayout.setWidget(5, QtWidgets.QFormLayout.LabelRole, self.delButton)
+        self.formLayout.setWidget(3, QtWidgets.QFormLayout.LabelRole, self.delButton)
 
 
         self.uploadButton = QtWidgets.QPushButton(self.widget)
