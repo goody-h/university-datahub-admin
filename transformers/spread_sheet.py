@@ -42,6 +42,7 @@ class _Level(object):
             ws = wb['L' + str(level * 100)]
             self.tables = []
             for i in range(0, department.semesters):
+                self.results.append([])
                 self.tables.append(ws.tables.get('S{}.{}'.format(level, i + 1)))
         self.ws = ws
         self.result_map = {}
