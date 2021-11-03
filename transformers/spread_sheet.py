@@ -77,7 +77,7 @@ class _Level(object):
             if self.sem_tcu.get(semester) == None:
                self.sem_tcu[semester] = 0
             
-            if len(ne_prop) > 1 and self.props.count('no-extra{}'.format(semester)) == 0:
+            if len(ne_prop) > 1 and self.props.count('no-extra{}'.format(semester)) == 0 and result.get('score') != None:
                 self.props.append('no-extra{}'.format(semester))
                 self.sem_tcu[semester] = 0
                 for res in self.results[semester - 1]:
