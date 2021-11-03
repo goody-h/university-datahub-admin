@@ -1,57 +1,53 @@
-# Touch not
+# Whoops! I touched it
 import math
-def rectify(sessions, levels = 7):
-    if len(sessions.keys()) == 0:
+def rectify(session_map, levels = 7, semesters = 2):
+    if len(session_map.keys()) == 0:
         return []
-    s = []
+    rectified_sessions = []
     for i in range(0, levels):
-        s.append(0)
+        rectified_sessions.append(0)
     
-    ss = []
-    ss.extend(sessions.keys())
-    ss.sort()
+    sessions = []
+    sessions.extend(session_map.keys())
+    sessions.sort()
 
-    ma = max(ss)
-    m_sem = sessions[ma] % 100
+    max_session = max(sessions)
+    max_semester = max(session_map.values())
+    previous_level = -1
 
-    for sk in ss:
-        if s[math.floor(sessions[sk] / 100) - 1] == 0:
-            s[math.floor(sessions[sk] / 100) - 1] = sk
-            del sessions[sk]
-    
-    m = min(ss)
-    i = s.index(m)
-    for j in range(i):
-        s[j] = m - i + j
-
-    ss = []
-    ss.extend(sessions.keys())
-    ss.sort()
-    for sk in ss:
-        st = 0
-        en = 0
-        for j in range(6):
-            if sk > s[j] and s[j + 1] == 0 and st == 0: 
-                st = j + 1
-            elif st > 0 and s[j + 1] > 0:
-                if s[j + 1] > sk:
-                    en = j
-                else:
-                    st = 0
-        if en == 0 or en - st == 0:
-            s[st] = sk
+    for session in sessions:
+        level = math.floor(session_map[session] / 100) - 1
+        if previous_level >= len(rectified_sessions) - 1:
+            break
+        if rectified_sessions[level] == 0:
+            rectified_sessions[level] = session
+            if level > 0:
+                reverse = 1
+                for i in range(level - 1, -1, -1):
+                    if i == previous_level:
+                        break
+                    new_session = session - reverse
+                    if rectified_sessions.count(new_session) > 0:
+                        previous_level = rectified_sessions.index(new_session) - 1
+                    rectified_sessions[i] = new_session
+                    reverse += 1
+            previous_level = level
         else:
-            inx = min([en-st, sk - s[st - 1]])
-            s[st + inx] = sk
+            previous_level += 1
+            rectified_sessions[previous_level] = session 
+
+    for j in range(levels - 1):
+        if rectified_sessions[j + 1] == 0 and rectified_sessions[j] != 0:
+            rectified_sessions[j + 1] = rectified_sessions[j] + 1
+
+    try:
+        i = rectified_sessions.index(max_session) + 1
+        if i * 100 >= max_semester:
+            max_semester = semesters
+        else:
+            max_semester = max_semester % 100
+    except:
+        max_session = rectified_sessions[len(rectified_sessions) - 1]
+        max_semester = semesters
     
-    for j in range(6):
-        if s[j + 1] == 0 and s[j] != 0:
-            try:
-                s.index(s[j] + 1)
-            except:
-                s[j + 1] = s[j] + 1
-    s.sort()
-    for j in range(6, 0, -1):
-        if s[j - 1] == 0: 
-            s[j - 1] = s[j] - 1
-    return {'sessions': s, 'last_sem': (s.index(ma) + 1) * 100 + m_sem}
+    return {'sessions': rectified_sessions, 'last_sem': (rectified_sessions.index(max_session) + 1) * 100 + max_semester}

@@ -262,10 +262,10 @@ class HeadFilter(ResultFilter):
         self.cache.update({'electives': {}})
 
 class CourseFilter(ResultFilter):
-    def __init__(self, cache, courses, level_count, wb):
+    def __init__(self, cache, courses, department, wb):
         super().__init__(cache)
         self.courses = courses
-        self.level_count = level_count
+        self.department = department
         self.wb = wb
         self.reject = []
 
@@ -291,7 +291,7 @@ class CourseFilter(ResultFilter):
 
     def release_hold(self):
         if self.cache['last_sem'] == 100:
-            self.cache.update(session_utils.rectify(self.data['sessions'], self.level_count))
+            self.cache.update(session_utils.rectify(self.data['sessions'], self.department.levels, self.department.semesters))
             if self.wb != None:
                 unknown = _Level(None, None, None, None, None)
                 unknown.commit_unknowns(self.reject, self.wb)
@@ -488,7 +488,7 @@ class SpreadSheet(object):
         
         cache = {}
         levels = {}
-        course_filter = CourseFilter(cache, courses, department.levels, self._wb)
+        course_filter = CourseFilter(cache, courses, department, self._wb)
         carryover_filter = CarryoverFilter(cache)
         retake_filter = RetakeFilter(cache)
         elect_filter = ElectiveFilter(cache)
