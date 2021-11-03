@@ -273,15 +273,19 @@ class CourseFilter(ResultFilter):
         self.data.update({ 'sessions': {}, 'last_sem': 100})
 
     def _evaluate_result(self, result):
+        result.update({'_session': result['session'], 'comment': '', 'flags': [], 'reason': ''})
         course = self.courses.get(result['courseCode'])
         if course == None:
             self.reject.append(result)
             return False
         result.update(course)
-        result.update({'_session': result['session'], 'comment': '', 'flags': []})
         if self.cache['last_sem'] == 100:
             l_session = self.data['sessions'].get(result['session'])
+            if l_session == None:
+                l_session = 100
             sem_id = result['level'] + result['sem']
+            if result['sem'] > l_session % 100:
+                sem_id = l_session - (l_session % 100) + result['sem']
             if l_session == None or sem_id > l_session:
                 self.data['sessions'][result['session']] = sem_id
             if sem_id > self.data['last_sem']:
