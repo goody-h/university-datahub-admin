@@ -285,7 +285,7 @@ class CourseFilter(ResultFilter):
                 l_session = 100
             sem_id = result['level'] + result['sem']
             if result['sem'] > l_session % 100:
-                sem_id = l_session - (l_session % 100) + result['sem']
+                sem_id = max(l_session - (l_session % 100), result['level']) + result['sem']
             if l_session == None or sem_id > l_session:
                 self.data['sessions'][result['session']] = sem_id
             if sem_id > self.data['last_sem']:
