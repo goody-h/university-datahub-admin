@@ -1,3 +1,4 @@
+from json.encoder import JSONEncoder
 from openpyxl import load_workbook
 import uuid, re
 # The excel magic is done here!
@@ -99,17 +100,18 @@ class TableMapper(object):
             if re.fullmatch(self.row_check['match'], row_c) == None:
                 continue
             row = {'batchId': self.batchId }
-            annotation = []
+            annotation = {'unknown_columns':[]}
             for uc in range(self.topLeft[1], self.bottomRight[1] + 1):
                 if self.headerMap[uc - self.topLeft[1]] != 'annotation':
                     row[self.headerMap[uc - self.topLeft[1]]] = self.sanitize(self.ws.cell(ur, uc).value)
                 else:
-                    annotation.append({
+                    annotation['unknown_columns'].append({
                         'key': self.sanitize(self.ws.cell(self.anchor[0], uc).value),
                         'value': self.sanitize(self.ws.cell(ur, uc).value)
                     })
-            row['annotation'] = str(annotation)
+            row['annotation'] = annotation
             if self.__modify_row__(row):
+                row['annotation'] = JSONEncoder().encode(row['annotation'])
                 self.data_rows.append(row)
 
     def sanitize(self, value):
