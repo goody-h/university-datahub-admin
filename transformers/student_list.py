@@ -16,11 +16,18 @@ class StudentList(TableMapper):
                 {'search': 'state', 'key': 'state'},
                 {'search': 'marital', 'key': 'marital_status'},
                 {'search': 'department', 'key': 'department'},
+                {'search': 'missed (session){0,1}', 'key': 'missed_sessions'},
                 {'search': 'delete', 'key': 'delete'},
             ],)
 
     def __modify_row__(self, row):
         row.update({'mat_no': row['mat_no'].upper()})
+        if re.match('^\s*,{0,1}\s*\d{4}/\d{4}(\s*,\s*\d{4}/\d{4})*\s*,{0,1}\s*$', str(row.get('missed_sessions'))) != None:
+            ms = row.get('missed_sessions').strip().strip(',').strip()
+            ms = re.split('\s*,\s*', ms)
+            for i in range(len(ms)):
+                ms[i] = int(ms[i].split('/')[1])
+            row['annotation']['missed_sessions'] = ms
         # TODO tests and sanitize (mat number, score), yada yada yada!
         return True
     
