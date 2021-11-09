@@ -1,8 +1,14 @@
 # Whoops! I touched it
 import math
-def rectify(session_map, levels = 7, semesters = 2):
+def rectify(session_map, levels = 7, semesters = 2, missed_sessions = None):
     if len(session_map.keys()) == 0:
         return []
+
+    if missed_sessions != None:
+        for session in missed_sessions:
+            if session_map.get(session) != None:
+                session_map.pop(session)
+
     rectified_sessions = []
     for i in range(0, levels):
         rectified_sessions.append(0)
@@ -27,6 +33,10 @@ def rectify(session_map, levels = 7, semesters = 2):
                     if i == previous_level:
                         break
                     new_session = session - reverse
+                    if missed_sessions != None:
+                        while missed_sessions.count(new_session) > 0:
+                            reverse += 1
+                            new_session = session - reverse
                     if rectified_sessions.count(new_session) > 0:
                         previous_level = rectified_sessions.index(new_session) - 1
                     rectified_sessions[i] = new_session
@@ -38,7 +48,11 @@ def rectify(session_map, levels = 7, semesters = 2):
 
     for j in range(levels - 1):
         if rectified_sessions[j + 1] == 0 and rectified_sessions[j] != 0:
-            rectified_sessions[j + 1] = rectified_sessions[j] + 1
+            new_session = rectified_sessions[j] + 1
+            if missed_sessions != None:
+                while missed_sessions.count(new_session) > 0:
+                    new_session += 1
+            rectified_sessions[j + 1] = new_session
 
     try:
         i = rectified_sessions.index(max_session) + 1

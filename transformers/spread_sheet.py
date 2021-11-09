@@ -262,11 +262,12 @@ class HeadFilter(ResultFilter):
         self.cache.update({'electives': {}})
 
 class CourseFilter(ResultFilter):
-    def __init__(self, cache, courses, department, wb):
+    def __init__(self, cache, courses, department, wb, missed_sessions):
         super().__init__(cache)
         self.courses = courses
         self.department = department
         self.wb = wb
+        self.missed_sessions = missed_sessions
         self.reject = []
 
     def reset_filter(self):
@@ -295,7 +296,7 @@ class CourseFilter(ResultFilter):
 
     def release_hold(self):
         if self.cache['last_sem'] == 100:
-            self.cache.update(session_utils.rectify(self.data['sessions'], self.department.levels, self.department.semesters))
+            self.cache.update(session_utils.rectify(self.data['sessions'], self.department.levels, self.department.semesters, self.missed_sessions))
             if self.wb != None:
                 unknown = _Level(None, None, None, None, None)
                 unknown.commit_unknowns(self.reject, self.wb)
@@ -304,7 +305,11 @@ class CourseFilter(ResultFilter):
 class SessionFilter(ResultFilter):
     def _evaluate_result(self, result):
         if self.cache['sessions'].count(result['session']) == 0:
-            result['reason'] += '[Maximum academic sessions exceeded] \n'
+            last_sess = max(self.cache['sessions'])
+            if result['session'] > last_sess:
+                result['reason'] += '[Maximum academic sessions exceeded] \n'
+            else:
+                result['reason'] += '[This is a missed academic session] \n'
             self.reject.append(result)
             return False
         return super()._evaluate_result(result)
@@ -505,7 +510,7 @@ class SpreadSheet(object):
         
         cache = {}
         levels = {}
-        course_filter = CourseFilter(cache, courses, department, self._wb)
+        course_filter = CourseFilter(cache, courses, department, self._wb, user.get('missed_sessions'))
         session_filter = SessionFilter(cache)
         carryover_filter = CarryoverFilter(cache)
         retake_filter1 = RetakeFilter(cache, flag_only= True)

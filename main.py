@@ -23,6 +23,8 @@ from utils import app_path
 import tkinter as tk
 from tkinter import filedialog
 
+from json.decoder import JSONDecoder
+
 Base.metadata.create_all(engine)
 
 class HLayout(object):
@@ -572,6 +574,10 @@ class Worker(QObject):
                             'mat_no': _user.mat_no, 'sex': _user.sex,
                             'marital_status': _user.marital_status, 'department': _user.department
                         }
+                        if str(_user.annotation).startswith('{'):
+                            ant = JSONDecoder().decode(str(_user.annotation))
+                            if ant.get('missed_sessions') != None:
+                                student['missed_sessions'] = ant.get('missed_sessions')
                     department = None
                     if student['department'] == None or student['department'] == '':
                         dpt = self.app.comboBoxz.currentIndex()
