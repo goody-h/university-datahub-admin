@@ -439,6 +439,9 @@ class MissingFilter(ResultFilter):
             sem_id = courses[key]['level'] + courses[key]['sem']
             elective_pair = 0
             prop = re.split('(elective-pair):(\d+)', str(courses[key]['properties']))
+            prop_opt = re.split('(optional)', str(courses[key]['properties']))
+            if len(prop_opt) > 1:
+                continue
             if len(prop) > 1:
                 elective_pair = int(prop[2])
             if (results.get(key) == None and sem_id <= self.cache['last_sem']
