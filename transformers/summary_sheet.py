@@ -99,7 +99,7 @@ class SummarySheet(object):
 
         ws = self._wb['Degree Result']
 
-        ws[_sheetMap['session']] = "SESSION: {}/{}".format(self.max_session -1, self.max_session)
+        ws.cell(5, 3 + (2 * self.department.levels)).value = "SESSION: {}/{}".format(self.max_session -1, self.max_session)
 
         row_shift = max(len(results) - 1 + len(set(self.sets)), 0)
 
