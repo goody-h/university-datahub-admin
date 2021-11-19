@@ -15,10 +15,11 @@ class _SharedData(object):
     hod = "22"
     def __init__(self, cache):
         super().__init__()
+        self.lead_level = 0
         self.cache = cache
 
 class _Level(object):
-    def __init__(self, level, session, wb, shared_data, department):
+    def __init__(self, level, session, wb, shared_data, department, user = None):
         super().__init__()
         self.results = []
         self.total_shift = 0
@@ -29,6 +30,7 @@ class _Level(object):
         self.department = department
         self.wb = wb
         self.sem_tcu = {}
+        self.user = user
 
         self.tqp = 0
         self.tcu = 0
@@ -145,7 +147,6 @@ class _Level(object):
             ws = self.ws
             ws[_sheetMap['session']] = str(self.session - 1) + '/' + str(self.session)
             self.is_lead = str(ws[_sheetMap['dept']].value).count('=') == 0
-            self.is_lead = self.level == 1
             
             for s in range(0, len(self.results)):
                 self.tables.append(self.ws.tables.get('S{}.{}'.format(self.level, s + 1)))
@@ -213,7 +214,13 @@ class _Level(object):
         self.tco = tco
 
         if self.is_lead:
-            self.shared_data.hod = str(12 + total_shift + self.get_semesters_range())
+            if self.level > self.shared_data.lead_level:
+                self.shared_data.lead_level = self.level
+                self.shared_data.hod = str(12 + total_shift + self.get_semesters_range())
+            if self.ws != None:
+                for key in self.user.keys():
+                    if _sheetMap.get(key) != None:
+                        self.ws[_sheetMap[key]] = self.user[key]
         
     def _shift_range(self, range, bottom, top=0):
         rng = self._split_ref(range)
@@ -387,22 +394,24 @@ class ElectiveFilter(ResultFilter):
         return super().release_hold()
 
 class LevelFilter(ResultFilter):
-    def __init__(self, cache, levels, wb, department):
+    def __init__(self, cache, levels, wb, department, user):
         super().__init__(cache)
         self.levels = levels
         self.level_data = _SharedData(self.cache)
         self.department = department
         self.wb = wb
         self.results = []
+        self.user = user
 
     def reset_filter(self):
+        self.level_data.lead_level = 0
         self.levels.clear()
 
     def _evaluate_result(self, result):
         level = self.cache['sessions'].index(result['session']) + 1
         sem = result['sem']
         if self.levels.get(level) == None:
-            self.levels[level] = _Level(level, result['session'], self.wb, self.level_data, self.department)
+            self.levels[level] = _Level(level, result['session'], self.wb, self.level_data, self.department, self.user)
         self.levels[level].add_result(result, sem)
         return False
     
@@ -412,7 +421,7 @@ class LevelFilter(ResultFilter):
             _results = level.evaluate_results()
             results.extend(_results)
         if len(self.levels) == 0 and len(self.cache['sessions']) > 0:
-            self.levels[level] = _Level(1, self.cache['sessions'][0], self.wb, self.level_data, self.department)
+            self.levels[level] = _Level(1, self.cache['sessions'][0], self.wb, self.level_data, self.department, self.user)
         results.sort(key = lambda i: (i['_session'], i['code']))
         self.hold = results
         self.results = results
@@ -434,6 +443,7 @@ class MissingFilter(ResultFilter):
             department = level.department
             wb = level.wb
             level_data = level.shared_data
+            user = level.user
             results.update(level.result_map)
 
         for key in courses.keys():
@@ -457,7 +467,7 @@ class MissingFilter(ResultFilter):
                 level = self.cache['sessions'].index(result['session']) + 1
                 sem = result['sem']
                 if self.levels.get(level) == None:
-                    self.levels[level] = _Level(level, result['session'], wb, level_data, department)
+                    self.levels[level] = _Level(level, result['session'], wb, level_data, department, user)
                 self.levels[level].add_result(result, sem)
         return super().release_hold()
 
@@ -508,9 +518,6 @@ class SpreadSheet(object):
         if filename != None and filename != '':
             _wb = load_workbook(app_path('static/excel/templates/{}.xlsx'.format(department.spreadsheet)))
             self._wb = _wb
-            for key in user.keys():
-                if _sheetMap.get(key) != None:
-                    _wb['L100'][_sheetMap[key]] = user[key]
         
         cache = {}
         levels = {}
@@ -520,7 +527,7 @@ class SpreadSheet(object):
         retake_filter1 = RetakeFilter(cache, flag_only= True)
         retake_filter2 = RetakeFilter(cache)
         elect_filter = ElectiveFilter(cache)
-        level_filter = LevelFilter(cache, levels, self._wb, department)
+        level_filter = LevelFilter(cache, levels, self._wb, department, user)
         miss_filter = MissingFilter(cache, levels, courses)
 
         self.evaluate([
@@ -545,7 +552,7 @@ class SpreadSheet(object):
         # step 4: remove unused sheets
         if self._wb != None:
             for sheet in _wb.worksheets:
-                if sheet[_sheetMap['session']].value == None and sheet.title != 'L100':
+                if sheet[_sheetMap['session']].value == None:
                     _wb.remove(sheet)
 
             try:
