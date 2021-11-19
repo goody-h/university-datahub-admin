@@ -552,6 +552,9 @@ class Worker(QObject):
         output = None
         self.show_progress.emit(len(mat_list) + operations.count(True) + 1)
         _department = None
+        dpt = self.app.comboBoxz.currentIndex()
+        if dpt != 0:
+            _department = self.app.dpts[dpt - 1]
         for mat_no in mat_list:
             if re.fullmatch('^[u,U]\d{4}/\d{7}$', mat_no) != None:
                 _record = self.session.query(Result).filter(Result.mat_no == mat_no).all()
@@ -580,12 +583,11 @@ class Worker(QObject):
                                 student['missed_sessions'] = ant.get('missed_sessions')
                     department = None
                     if student['department'] == None or student['department'] == '':
-                        dpt = self.app.comboBoxz.currentIndex()
-                        if dpt == 0:
+                        if _department == None:
                             group['no_dept']['v'].append(mat_no)
                             self.update_progress.emit(1)
                             continue
-                        department = self.app.dpts[dpt - 1]
+                        department = _department
                     else:
                         for dpt in self.app.dpts:
                             if student['department'].lower() == dpt.code.lower():
@@ -598,7 +600,8 @@ class Worker(QObject):
                             continue
 
                     student['department'] = department.code
-                    _department = department
+                    if _department == None or department.levels > _department.levels:
+                        _department = department
                     _courses = self.session.query(Course).filter(Course.department == department.code).all()
                     courses = {}
                     
