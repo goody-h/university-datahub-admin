@@ -18,15 +18,14 @@ class _SharedData(object):
         self.cache = cache
 
 class _Level(object):
-    def __init__(self, level, session, wb, shared_data, department,  is_lead=False, is_tail=False):
+    def __init__(self, level, session, wb, shared_data, department):
         super().__init__()
         self.results = []
         self.total_shift = 0
         self.level = level
         self.session = session
         self.shared_data = shared_data
-        self.is_lead = is_lead
-        self.is_tail = is_tail
+        self.is_lead = False
         self.department = department
         self.wb = wb
         self.sem_tcu = {}
@@ -43,7 +42,8 @@ class _Level(object):
             self.tables = []
             for i in range(0, department.semesters):
                 self.results.append([])
-                self.tables.append(ws.tables.get('S{}.{}'.format(level, i + 1)))
+                if ws != None:
+                    self.tables.append(ws.tables.get('S{}.{}'.format(level, i + 1)))
         self.ws = ws
         self.result_map = {}
         self.props = []
@@ -144,6 +144,8 @@ class _Level(object):
         if self.ws != None:
             ws = self.ws
             ws[_sheetMap['session']] = str(self.session - 1) + '/' + str(self.session)
+            self.is_lead = str(ws[_sheetMap['dept']].value).count('=') == 0
+            self.is_lead = self.level == 1
             
             for s in range(0, len(self.results)):
                 self.tables.append(self.ws.tables.get('S{}.{}'.format(self.level, s + 1)))
@@ -168,11 +170,10 @@ class _Level(object):
             total_shift += shift
         
         if self.ws != None:
-            if self.is_tail:
-                if ws['G' + str(13 + total_shift + self.get_semesters_range())].value != None:
-                    ws['G' + str(13 + total_shift + self.get_semesters_range())] = ws['G' + str(13 + total_shift + 
-                            self.get_semesters_range())].value.replace(str(10 + self.get_semesters_range()),
-                                    str(10 + total_shift + self.get_semesters_range()))
+            if ws['G' + str(13 + total_shift + self.get_semesters_range())].value != None:
+                ws['G' + str(13 + total_shift + self.get_semesters_range())] = ws['G' + str(13 + total_shift + 
+                        self.get_semesters_range())].value.replace(str(10 + self.get_semesters_range()),
+                                str(10 + total_shift + self.get_semesters_range()))
         
         self.total_shift = total_shift
          
@@ -401,7 +402,7 @@ class LevelFilter(ResultFilter):
         level = self.cache['sessions'].index(result['session']) + 1
         sem = result['sem']
         if self.levels.get(level) == None:
-            self.levels[level] = _Level(level, result['session'], self.wb, self.level_data, self.department, is_lead=level == 1, is_tail=level>=4)
+            self.levels[level] = _Level(level, result['session'], self.wb, self.level_data, self.department)
         self.levels[level].add_result(result, sem)
         return False
     
@@ -411,7 +412,7 @@ class LevelFilter(ResultFilter):
             _results = level.evaluate_results()
             results.extend(_results)
         if len(self.levels) == 0 and len(self.cache['sessions']) > 0:
-            self.levels[level] = _Level(1, self.cache['sessions'][0], self.wb, self.level_data, self.department, is_lead=True, is_tail=False)
+            self.levels[level] = _Level(1, self.cache['sessions'][0], self.wb, self.level_data, self.department)
         results.sort(key = lambda i: (i['_session'], i['code']))
         self.hold = results
         self.results = results
@@ -456,7 +457,7 @@ class MissingFilter(ResultFilter):
                 level = self.cache['sessions'].index(result['session']) + 1
                 sem = result['sem']
                 if self.levels.get(level) == None:
-                    self.levels[level] = _Level(level, result['session'], wb, level_data, department, is_lead=level == 1, is_tail=level>=4)
+                    self.levels[level] = _Level(level, result['session'], wb, level_data, department)
                 self.levels[level].add_result(result, sem)
         return super().release_hold()
 
