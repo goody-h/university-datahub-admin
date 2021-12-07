@@ -6,5 +6,6 @@ class Profile(AppBase):
 
     id = Column(String, primary_key=True)
     name = Column(String)
+    timestamp = Column(Integer)
     _signature_ = Column(String)
 

@@ -117,8 +117,23 @@ class Ui_centralWidget(object):
         font.setBold(True)
         self.appHeader.setFont(font)
         self.appHeader.setObjectName("appHeader")
-        self.horizontalLayout_4.addWidget(self.appHeader)
+        self.horizontalLayout_4.addWidget(self.appHeader, 1)
 ######
+
+        self.profileSel = QtWidgets.QComboBox(self.headerFrame)
+        self.profileSel.setMinimumSize(QtCore.QSize(300, 0))
+        self.profileSel.setObjectName("profileSel")
+        self.horizontalLayout_4.addWidget(self.profileSel, 0, QtCore.Qt.AlignRight)
+        
+        self.newprofile = QtWidgets.QPushButton(self.headerFrame)
+        icon = QtGui.QIcon()
+        icon.addPixmap(QtGui.QPixmap("static/icon/add.svg"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+
+        self.newprofile.setIcon(icon)
+        self.newprofile.setObjectName("newprofile")
+        self.newprofile.setMinimumWidth(0)
+        self.horizontalLayout_4.addWidget(self.newprofile, 0, QtCore.Qt.AlignRight)
+
         self.password = QtWidgets.QPushButton(self.headerFrame)
         icon = QtGui.QIcon()
         icon.addPixmap(QtGui.QPixmap("static/icon/lock.svg"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
@@ -323,8 +338,7 @@ class Ui_centralWidget(object):
         centralWidget.setFixedSize(centralWidget.sizeHint())
 
 ####
-        self.profile = ProfileManager()
-        self.profile.getCurrentProfile()
+        self.configure_profile()
         self.attach_event_handlers()
         self.files = None
         self.progress = ProgressDialog(centralWidget, self.get_size_from_ratio(2.5, 3.5))
@@ -362,6 +376,8 @@ class Ui_centralWidget(object):
         self.matNumberLineEdit.setPlaceholderText(_translate("centralWidget", "Input MAT No.s (e.g U2015/3025001,...)"))
         self.genSpreadsheetButton.setText(_translate("centralWidget", "Generate"))
 
+        self.newprofile.setText(_translate("centralWidget", " New profile"))
+
     def attach_event_handlers(self):
         self.selectFileButton.clicked.connect(self.select_handler)
         self.uploadButton.clicked.connect(self.upload_handler)
@@ -369,14 +385,48 @@ class Ui_centralWidget(object):
         self.uploadButtonx.clicked.connect(self.uploadlist_handler)
         self.password.clicked.connect(self.set_password_handler)
 
+    def configure_profile(self):
+        self.profile = ProfileManager()
+        self.profile.getCurrentProfile()
+        self.load_profiles()
+        self.profileSel.currentIndexChanged.connect(self.change_profile)
+        self.newprofile.clicked.connect(self.new_profile_handler)
+
+    def change_profile(self, index):
+        if not self.loading_profile:
+            self.profile.setCurrentProfile(self.profile.profiles[index])
+
+
+    def new_profile_handler(self):
+        text, ok = QtWidgets.QInputDialog.getText(self.centralWidget, "Attention", "Profile Name?")
+        if ok and text != '' and text != None:
+            self.profile.createNewProfile(text)
+            self.load_profiles()
+
+    def load_profiles(self):
+        session = self.profile.pdb.Session()
+        index = 0
+        self.loading_profile = True
+        for i in range(0, len(self.profile.profiles)):
+            self.profileSel.removeItem(i)
+        for i in range(0, len(self.profile.profiles)):
+            pr = self.profile.profiles[i]
+            if str(pr.id) == str(self.profile.profile.id):
+                index = i
+            if self.profileSel.itemText(i) != "":
+                self.profileSel.setItemText(i, pr.name)
+            else:
+                self.profileSel.addItem(pr.name)
+        session.close()
+        self.profileSel.setCurrentIndex(index)
+        self.loading_profile = False
+
     def load_departments(self):
         for i in range(0, len(self.dpts)):
             self.comboBoxz.removeItem(i + 1)
         session = self.profile.pdb.Session()
         self.dpts = session.query(Department).all()
         
-        for i in range(0, len(self.dpts)):
-            self.comboBoxz.removeItem(i + 1)
         for i in range(0, len(self.dpts)):
             dpt = self.dpts[i]
             if self.comboBoxz.itemText(i + 1) != "":
