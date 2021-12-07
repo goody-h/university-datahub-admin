@@ -3,6 +3,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import QSize, Qt
 from PyQt5.QtWidgets import QMessageBox
 from PyQt5.QtCore import QObject, QThread, pyqtSignal
+from services.crypto import CryptoManager
 
 from transformers.master_sheet import MasterSheet
 from transformers.spread_sheet import SpreadSheet
@@ -55,6 +56,7 @@ class Ui_centralWidget(object):
 "  border-width: 2px;\n"
 "  border-radius: 5px;\n"
 "  border-color: black;\n"
+"  min-width: 600px;\n"
 "}\n"
 "\n"
 "#appHeader {\n"
@@ -118,6 +120,16 @@ class Ui_centralWidget(object):
         self.appHeader.setFont(font)
         self.appHeader.setObjectName("appHeader")
         self.horizontalLayout_4.addWidget(self.appHeader)
+######
+        self.password = QtWidgets.QPushButton(self.headerFrame)
+        icon = QtGui.QIcon()
+        icon.addPixmap(QtGui.QPixmap("static/icon/lock.svg"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+
+        self.password.setIcon(icon)
+        self.password.setObjectName("password")
+        self.password.setMinimumWidth(0)
+        self.horizontalLayout_4.addWidget(self.password, 0, QtCore.Qt.AlignRight)
+######
         self.verticalLayout.addWidget(self.headerFrame)
         self.cardsFrame = QtWidgets.QWidget(self.mainbody)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Expanding)
@@ -234,7 +246,7 @@ class Ui_centralWidget(object):
         font.setBold(True)
         self.label_3.setFont(font)
         self.label_3.setObjectName("label_3")
-        self.horizontalLayout_5.addWidget(self.label_3, 0, QtCore.Qt.AlignTop)
+        self.horizontalLayout_5.addWidget(self.label_3, 1, QtCore.Qt.AlignTop)
         self.verticalLayout_5.addWidget(self.headerWidget_2)
         self.widget_2 = QtWidgets.QWidget(self.spreadsheet)
         self.widget_2.setObjectName("widget_2")
@@ -259,6 +271,9 @@ class Ui_centralWidget(object):
         self.shButton = QtWidgets.QCheckBox(self.widget_2)
         self.shButton.setObjectName("shButton")
         self.shButton.setChecked(True)
+        self.vButton = QtWidgets.QCheckBox(self.widget_2)
+        self.vButton.setObjectName("vButton")
+        self.vButton.setChecked(True)
         self.smButton = QtWidgets.QCheckBox(self.widget_2)
         self.smButton.setObjectName("smButton")
 
@@ -283,6 +298,7 @@ class Ui_centralWidget(object):
         self.verticalLayout_2.addWidget(self.widget_o.widget)
 ##
         self.verticalLayout_2.addWidget(self.shButton)
+        self.verticalLayout_2.addWidget(self.vButton)
         self.verticalLayout_2.addWidget(self.smButton)
         self.verticalLayout_5.addWidget(self.widget_2)
         self.widget_5 = QtWidgets.QWidget(self.spreadsheet)
@@ -338,6 +354,7 @@ class Ui_centralWidget(object):
         self.uploadButtonx.setText(_translate("centralWidget", " Select File "))
         self.label_b.setText(_translate("centralWidget", "or"))
         self.shButton.setText(_translate("centralWidget", "Generate spreadheet"))
+        self.vButton.setText(_translate("centralWidget", "Verify results"))
         self.smButton.setText(_translate("centralWidget", "Generate summary"))
         self.delButton.setText(_translate("centralWidget", "Delete"))
         
@@ -349,18 +366,22 @@ class Ui_centralWidget(object):
         self.uploadButton.clicked.connect(self.upload_handler)
         self.genSpreadsheetButton.clicked.connect(self.spreadsheet_handler)
         self.uploadButtonx.clicked.connect(self.uploadlist_handler)
+        self.password.clicked.connect(self.set_password_handler)
 
     def load_departments(self):
         for i in range(0, len(self.dpts)):
             self.comboBoxz.removeItem(i + 1)
-
         session = Session()
         self.dpts = session.query(Department).all()
-            
-        for i in range(1, self.comboBoxz.count()):
-            self.comboBoxz.removeItem(i)
-        for dpt in self.dpts:
-            self.comboBoxz.addItem('{}: {}'.format(dpt.department, dpt.code))
+        
+        for i in range(0, len(self.dpts)):
+            self.comboBoxz.removeItem(i + 1)
+        for i in range(0, len(self.dpts)):
+            dpt = self.dpts[i]
+            if self.comboBoxz.itemText(i + 1) != "":
+                self.comboBoxz.setItemText(i + 1, '{}: {}'.format(dpt.department, dpt.code))
+            else:
+                self.comboBoxz.addItem('{}: {}'.format(dpt.department, dpt.code))
         session.close()
         if len(self.dpts) == 1:
             self.comboBoxz.setCurrentIndex(1)
@@ -381,15 +402,71 @@ class Ui_centralWidget(object):
         worker.load_departments.connect(self.load_departments)
         return self.thread
 
+    def set_password_handler(self):
+        crypto = CryptoManager()
+        status = crypto.load_keys()
+        if status == "none":
+            passwd = None
+            while True:
+                title = "Current Password?" if passwd == None else "Current Password? (Incorrect, Try Again!)"
+                text, ok = QtWidgets.QInputDialog.getText(self.centralWidget, "Attention", title, QtWidgets.QLineEdit.Password)
+                if not ok:
+                    break
+                passwd = text
+                status = crypto.load_keys(passwd)
+                if status == 'correct':
+                    break
+
+        if status == 'correct' or status == 'default':
+            new, ok = QtWidgets.QInputDialog.getText(self.centralWidget, "Attention", "New Password?", QtWidgets.QLineEdit.Password)
+            if not ok:
+                self.show_message('Cancelled', False)
+                return
+            passwd = None
+            while True:
+                title = "Confirm New Password" if passwd == None else "Confirm New Password (Incorrect, Try Again!)"
+                confirm, ok = QtWidgets.QInputDialog.getText(self.centralWidget, "Attention", title, QtWidgets.QLineEdit.Password)
+                passwd = confirm
+                if not ok:
+                    self.show_message('Cancelled', False)
+                    return
+                if passwd == new:
+                    crypto.set_password(passwd)
+                    self.show_message('Password change success!', False)
+                    break
+
+
     def spreadsheet_handler(self):
-        self.worker = Worker(self)
+        crypto = CryptoManager()
+        self.worker = Worker(self, crypto)
         self.thread = self.create_thread(worker = self.worker, exec = self.worker.spreadsheet_handler)
         self.thread.start()
 
     def upload_handler(self):
-        self.worker = Worker(self)
-        self.thread = self.create_thread(worker = self.worker, exec = self.worker.upload_handler)
-        self.thread.start()
+        index = self.comboBox.currentIndex()
+        if index == 0:
+            self.show_message('Please select an upload type', False)
+        else:
+            if self.files == None or len(self.files) == 0:
+                self.show_message('No file selected, please select a file', False)
+                return
+            crypto = CryptoManager()
+            status = crypto.load_keys()
+            if status == "none":
+                passwd = None
+                while True:
+                    title = "Password?" if passwd == None else "Password? (Incorrect, Try Again!)"
+                    text, ok = QtWidgets.QInputDialog.getText(self.centralWidget, "Attention", title, QtWidgets.QLineEdit.Password)
+                    if not ok:
+                        break
+                    passwd = text
+                    status = crypto.load_keys(passwd)
+                    if status == 'correct':
+                        break
+            if status == 'correct' or status == 'default':
+                self.worker = Worker(self, crypto)
+                self.thread = self.create_thread(worker = self.worker, exec = self.worker.upload_handler)
+                self.thread.start()
 
     def uploadlist_handler(self):
         self.mat_files = self.get_text_file()
@@ -497,10 +574,11 @@ class ScrollMessageBox(QMessageBox):
         scroll.setMinimumSize(size)
 
 class Worker(QObject):
-    def __init__(self, app) -> None:
+    def __init__(self, app, cryptoMan = None) -> None:
         super().__init__()
         self.app = app
         self.session = Session()
+        self.cryptoMan = cryptoMan
 
     finished = pyqtSignal()
     show_message = pyqtSignal(str, bool)
@@ -528,6 +606,7 @@ class Worker(QObject):
 
         gensh = self.app.shButton.isChecked()
         gensm = self.app.smButton.isChecked()
+        verify = self.app.vButton.isChecked()
 
         operations = [gensh, gensm]
         
@@ -562,7 +641,10 @@ class Worker(QObject):
                 record = []
                 if len(_record) > 0:
                     for r in _record:
-                        record.append({'session': r.session,'courseCode': r.courseCode, 'score': r.score, 'mat_no': r.mat_no})
+                        _r = {'session': r.session,'courseCode': r.courseCode, 'score': r.score, 'mat_no': r.mat_no, 'verified': True}
+                        if self.cryptoMan != None and verify:
+                            _r['verified'] = self.cryptoMan.verify_signature(r, r._signature_)
+                        record.append(_r)
 
                     record.sort(key = lambda i: (i['session']))
 
@@ -697,6 +779,7 @@ class Worker(QObject):
             deleted = 0
             batch = mapper('').batchId
 
+            isDelete = self.app.delButton.isChecked()
             self.show_progress.emit(1+ len(self.app.files) * 1000000)
 
             for file in self.app.files:
@@ -707,7 +790,10 @@ class Worker(QObject):
                 
                 for data in results:
                     record = object(data)
-                    if (data.get('delete') != None and str(data.get('delete')).lower() == 'true') or self.app.delButton.isChecked():
+                    record.timestamp = math.floor(time.time())
+                    if self.cryptoMan != None:
+                        record._signature_ = self.cryptoMan.sign(record)
+                    if (data.get('delete') != None and str(data.get('delete')).lower() == 'true') or isDelete:
                         delt = delete(data, self.session, False)
                         if delt > 0:
                             deleted += 1
@@ -755,6 +841,7 @@ class Worker(QObject):
                 mat_no = data['mat_no'],
                 annotation = data['annotation'],
                 score = data['score'],
+                status = "UP",
             ),
             delete = lambda data, session, update: session.query(Result)
                 .filter(Result.resultId == data['resultId']).delete()
@@ -787,6 +874,7 @@ class Worker(QObject):
                 level = data['level'],
                 sem = data['sem'],
                 department = data['department'],
+                status = "UP",
             )
         else:
             return Department(
@@ -800,7 +888,8 @@ class Worker(QObject):
                 levels = data['levels'],
                 summary = data['summary'],
                 spreadsheet = data['spreadsheet'],
-                max_cu = data['max_cu']
+                max_cu = data['max_cu'],
+                status = "UP",
             )
 
     def biodata_upload(self):
@@ -817,6 +906,7 @@ class Worker(QObject):
                 last_name = data['last_name'],
                 first_name = data['first_name'],
                 other_names = data['other_names'],
+                status = "UP",
             ),
             delete = lambda data, session, update: session.query(Student)
                 .filter(Student.mat_no == data['mat_no']).delete()

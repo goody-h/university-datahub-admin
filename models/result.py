@@ -12,3 +12,7 @@ class Result(Base):
     mat_no = Column(String)
     annotation = Column(String)
     score = Column(Integer)
+    status = Column(String)
+    timestamp = Column(Integer)
+    _signature_ = Column(String)
+

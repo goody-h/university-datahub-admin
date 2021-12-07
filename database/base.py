@@ -13,5 +13,5 @@ except:
 
 engine = create_engine('sqlite:///{}'.format(app_path('db/data.db')))
 Session = sessionmaker(bind=engine)
-
 Base = declarative_base()
+LocalBase = declarative_base()

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String
+from sqlalchemy import Column, String, Integer
 from database.base import Base
 
 class Student(Base):
@@ -14,5 +14,9 @@ class Student(Base):
     department = Column(String)
     batchId = Column(String)
     annotation = Column(String)
+    status = Column(String)
+    timestamp = Column(Integer)
+    _signature_ = Column(String)
+
 
     

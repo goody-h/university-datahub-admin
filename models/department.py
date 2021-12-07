@@ -15,3 +15,6 @@ class Department(Base):
     summary = Column(String)
     spreadsheet = Column(String)
     max_cu = Column(Integer)
+    status = Column(String)
+    timestamp = Column(Integer)
+    _signature_ = Column(String)

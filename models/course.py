@@ -13,5 +13,8 @@ class Course(Base):
     level = Column(Integer)
     sem = Column(Integer)
     department = Column(String)
+    status = Column(String)
+    timestamp = Column(Integer)
+    _signature_ = Column(String)
 
     

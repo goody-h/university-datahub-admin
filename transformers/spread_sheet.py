@@ -322,6 +322,15 @@ class SessionFilter(ResultFilter):
             return False
         return super()._evaluate_result(result)
 
+class SignatureFilter(ResultFilter):
+    def _evaluate_result(self, result):
+        if result.get('verified') == False:
+            result['reason'] += '[This result failed signature verification] \n'
+            self.reject.append(result)
+            return False
+        return super()._evaluate_result(result)
+
+
 class CarryoverFilter(ResultFilter):
     def reset_filter(self):
         self.cache['result_map'] = {}
@@ -532,7 +541,7 @@ class SpreadSheet(object):
 
         self.evaluate([
             HeadFilter(cache, results),
-            course_filter, session_filter, carryover_filter, retake_filter1, level_filter,
+            course_filter, SignatureFilter(cache), session_filter, carryover_filter, retake_filter1, level_filter,
             HeadFilter(cache),
             course_filter, carryover_filter, retake_filter2, elect_filter, level_filter, miss_filter,
             StopFilter(cache, levels, self._wb)
