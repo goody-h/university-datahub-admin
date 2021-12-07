@@ -12,13 +12,11 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from models.config import Config
-from database.base import Session, engine, LocalBase
-
-LocalBase.metadata.create_all(engine)
 
 class CryptoManager(object):
-    def __init__(self):
+    def __init__(self, db):
         super().__init__()
+        self.Session = db.Session
         self.private_key = None
         self.public_key = None
 
@@ -39,7 +37,7 @@ class CryptoManager(object):
         return check['pass_state']
 
     def save_keys(self, pr_key, e_pr_pem = None):
-        session = Session()
+        session = self.Session()
         pu_key = pr_key.publickey()
         pu_pem = pu_key.export_key().decode()
         pu_pem = Config(
@@ -75,7 +73,7 @@ class CryptoManager(object):
         session.close()
 
     def get_encrypted_key(self):
-        session = Session()
+        session = self.Session()
         key = session.query(Config).filter(Config.config == "e_private_key_pem").first()
         if key != None:
             key = key.value
@@ -83,7 +81,7 @@ class CryptoManager(object):
         return key
 
     def get_public_key(self):
-        session = Session()
+        session = self.Session()
         key = session.query(Config).filter(Config.config == "public_key_pem").first()
         if key != None:
             key = key.value

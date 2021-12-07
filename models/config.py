@@ -1,7 +1,7 @@
 from sqlalchemy import Column, String, Integer
-from database.base import LocalBase
+from database.model import Base
 
-class Config(LocalBase):
+class Config(Base):
     __tablename__ = 'app_config'
 
     # configs: settings, e_private_key_pem, public_key_pem

@@ -1,7 +1,7 @@
 from sqlalchemy import Column, String, Integer
-from database.base import Base
+from database.model import ProfileBase
 
-class Student(Base):
+class Student(ProfileBase):
     __tablename__ = 'students'
 
     first_name = Column(String)

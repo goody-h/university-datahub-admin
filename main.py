@@ -18,15 +18,13 @@ from models.result import Result
 from models.student import Student
 from models.course import Course
 from models.department import Department
-from database.base import Session, engine, Base
+from config.profile import ProfileManager
 from utils import app_path
 
 import tkinter as tk
 from tkinter import filedialog
 
 from json.decoder import JSONDecoder
-
-Base.metadata.create_all(engine)
 
 class HLayout(object):
     def __init__(self, parent, name, margin_top) -> None:
@@ -324,6 +322,9 @@ class Ui_centralWidget(object):
 
         centralWidget.setFixedSize(centralWidget.sizeHint())
 
+####
+        self.profile = ProfileManager()
+        self.profile.getCurrentProfile()
         self.attach_event_handlers()
         self.files = None
         self.progress = ProgressDialog(centralWidget, self.get_size_from_ratio(2.5, 3.5))
@@ -371,7 +372,7 @@ class Ui_centralWidget(object):
     def load_departments(self):
         for i in range(0, len(self.dpts)):
             self.comboBoxz.removeItem(i + 1)
-        session = Session()
+        session = self.profile.pdb.Session()
         self.dpts = session.query(Department).all()
         
         for i in range(0, len(self.dpts)):
@@ -403,7 +404,7 @@ class Ui_centralWidget(object):
         return self.thread
 
     def set_password_handler(self):
-        crypto = CryptoManager()
+        crypto = CryptoManager(self.profile.pdb)
         status = crypto.load_keys()
         if status == "none":
             passwd = None
@@ -437,7 +438,7 @@ class Ui_centralWidget(object):
 
 
     def spreadsheet_handler(self):
-        crypto = CryptoManager()
+        crypto = CryptoManager(self.profile.pdb)
         self.worker = Worker(self, crypto)
         self.thread = self.create_thread(worker = self.worker, exec = self.worker.spreadsheet_handler)
         self.thread.start()
@@ -450,7 +451,7 @@ class Ui_centralWidget(object):
             if self.files == None or len(self.files) == 0:
                 self.show_message('No file selected, please select a file', False)
                 return
-            crypto = CryptoManager()
+            crypto = CryptoManager(self.profile.pdb)
             status = crypto.load_keys()
             if status == "none":
                 passwd = None
@@ -577,7 +578,7 @@ class Worker(QObject):
     def __init__(self, app, cryptoMan = None) -> None:
         super().__init__()
         self.app = app
-        self.session = Session()
+        self.session = app.profile.pdb.Session()
         self.cryptoMan = cryptoMan
 
     finished = pyqtSignal()

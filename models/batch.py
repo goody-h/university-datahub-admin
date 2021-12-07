@@ -1,7 +1,7 @@
 from sqlalchemy import Column, String, Integer, Date
-from database.base import Base
+from database.model import ProfileBase
 
-class Batch(Base):
+class Batch(ProfileBase):
     __tablename__ = 'batches'
 
     id = Column(String, primary_key=True)

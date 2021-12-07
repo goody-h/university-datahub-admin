@@ -1,7 +1,7 @@
 from sqlalchemy import Column, String, Integer
-from database.base import Base
+from database.model import ProfileBase
 
-class Result(Base):
+class Result(ProfileBase):
     __tablename__ = 'results'
 
     resultId = Column(String, primary_key=True)
