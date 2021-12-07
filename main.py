@@ -19,7 +19,7 @@ from models.student import Student
 from models.course import Course
 from models.department import Department
 from config.profile import ProfileManager
-from utils import app_path
+from services.storage import Storage
 
 import tkinter as tk
 from tkinter import filedialog
@@ -666,10 +666,12 @@ class Worker(QObject):
             self.finished.emit()
             return 
         
-        folder = 'output/'
+        store = Storage()
+        output_path = store.get_outpur_dir()
+        folder = output_path
         self.create_folder(folder)
         if (len(mat_list) > 1 and gensh) or operations.count(True) > 1:
-            folder = 'output/Output_Batch_{}/'.format(suffix)
+            folder = output_path + 'Output_Batch_{}/'.format(suffix)
             self.create_folder(folder)
 
         group = {
@@ -748,7 +750,7 @@ class Worker(QObject):
                         continue
                     spread_sheet = SpreadSheet()
                     output = folder + mat_no.replace('/', '-') + '_spreadsheet_'+ suffix + '.xlsx'
-                    filename = app_path(output)
+                    filename = output
                     if not gensh:
                         filename = None
                     response = spread_sheet.generate(
@@ -778,7 +780,7 @@ class Worker(QObject):
             summary.generate(
                 responses,
                 _department,
-                filename = app_path(output)
+                filename = output
             )
             self.update_progress.emit(1)
         
@@ -789,7 +791,7 @@ class Worker(QObject):
                     path = folder
                 total_r = len(spread_sheet.scored_results)
                 unkown_r = len(spread_sheet.invalid_results)
-                self.show_message.emit('Operation complete!\n\nResult count: {}/{}\n\nSaved at:\n{}'.format(total_r - unkown_r, total_r, app_path(path)), False)
+                self.show_message.emit('Operation complete!\n\nResult count: {}/{}\n\nSaved at:\n{}'.format(total_r - unkown_r, total_r, path), False)
             else:
                 for key in group.keys():
                     if key != 'success':
@@ -808,7 +810,7 @@ class Worker(QObject):
                 path = output
                 if operations.count(True) > 1 or gensh:
                     path = folder
-                msg += 'Saved at:\n{}\n\n'.format(app_path(path))
+                msg += 'Saved at:\n{}\n\n'.format(path)
             for key in group.keys():
                 if key != 'success':
                     if len(group[key]['v']) > 0:

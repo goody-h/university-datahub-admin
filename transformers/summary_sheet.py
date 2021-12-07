@@ -1,8 +1,7 @@
 from openpyxl import load_workbook
 from openpyxl.styles.fonts import Font
 import re
-
-from utils import app_path
+from services.storage import Storage
 
 _sheetMap = {
     'session': 'Q5', 'dept': 'A3', 'faculty': 'A2'
@@ -13,7 +12,8 @@ class SummarySheet(object):
         super().__init__()
 
     def generate(self, results, department, filename = ''):
-        template = app_path('static/excel/templates/{}.xlsm'.format(department.summary))
+        store = Storage()
+        template = store.find_template('{}.xlsm'.format(department.summary))
         _wb = load_workbook(template, read_only=False, keep_vba=True)
         self._wb = _wb
         response = {}

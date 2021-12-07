@@ -2,7 +2,8 @@ from openpyxl import load_workbook
 from openpyxl.comments import Comment
 import re
 import transformers.session_utils as session_utils
-from utils import app_path
+from services.storage import Storage
+
 
 
 _sheetMap = {
@@ -525,7 +526,8 @@ class SpreadSheet(object):
         _sheetMap['hod'] = 'B{}'.format(12 + (5 * department.semesters))
 
         if filename != None and filename != '':
-            _wb = load_workbook(app_path('static/excel/templates/{}.xlsx'.format(department.spreadsheet)))
+            store = Storage()
+            _wb = load_workbook(store.find_template('{}.xlsx'.format(department.spreadsheet)))
             self._wb = _wb
         
         cache = {}
