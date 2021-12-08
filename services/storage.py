@@ -1,8 +1,6 @@
-import os, re, platform
+import os
 from utils import app_path
 from pathlib import Path
-# platform.system()
-
 
 class Storage(object):
     def __init__(self) -> None:
@@ -16,17 +14,18 @@ class Storage(object):
 
     def get_write_dir(self, dir):
         rnd = os.urandom(4).hex()
-        try:
-            os.mkdir(rnd)
-            os.rmdir(rnd)
-            if not os.path.exists(dir):
-                os.mkdir(dir)
-                print('{} directory created'.format(dir))
-            return self.sep(app_path(dir) + '/')
-        except PermissionError:
-            home = os.path.join(Path.home(), 'Documents/DataHub Files/{}/'.format(dir))
-            os.makedirs(home, exist_ok=True)
-            return self.sep(home)
+        if not self.is_flagged_root():
+            try:
+                os.mkdir(rnd)
+                os.rmdir(rnd)
+                if not os.path.exists(dir):
+                    os.mkdir(dir)
+                    print('{} directory created'.format(dir))
+                return self.sep(app_path(dir) + '/')
+            except: pass
+        home = os.path.join(Path.home(), 'Documents/DataHub Files/{}/'.format(dir))
+        os.makedirs(home, exist_ok=True)
+        return self.sep(home)
 
     def sep(self, path):
         return path.replace('/', os.path.sep)
@@ -55,3 +54,17 @@ class Storage(object):
         if os.path.exists(dir):
             return self.sep(dir)
         return None
+
+    def is_flagged_root(self):
+        root = self.sep(app_path('') + '/')
+        dirs = [
+            os.path.join(Path.home(), 'AppData'),
+            os.path.abspath('/Program Files'),
+            os.path.abspath('/Program Files (x86)'),
+            os.path.abspath('/bin'),
+            os.path.abspath('/usr')
+        ]
+        for dir in dirs:
+            if root.startswith(dir):
+                return True
+        return False        
