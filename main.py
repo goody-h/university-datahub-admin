@@ -136,7 +136,7 @@ class Ui_centralWidget(object):
 
         self.password = QtWidgets.QPushButton(self.headerFrame)
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap("static/icon/lock.svg"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon.addPixmap(QtGui.QPixmap("static/icon/settings.svg"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
 
         self.password.setIcon(icon)
         self.password.setObjectName("password")
