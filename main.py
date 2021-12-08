@@ -676,6 +676,7 @@ class Worker(QObject):
         self.create_folder(folder)
         if (len(mat_list) > 1 and gensh) or operations.count(True) > 1:
             folder = output_path + 'Output_Batch_{}/'.format(suffix)
+            folder = store.sep(folder)
             self.create_folder(folder)
 
         group = {
