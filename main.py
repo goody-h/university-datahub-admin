@@ -36,8 +36,11 @@ class HLayout(object):
         self.hlayout.setContentsMargins(0, margin_top, 0, 0)
 
 class Ui_centralWidget(object):
-    def setupUi(self, centralWidget):
+    def setupUi(self, window):
+        window.setObjectName("window")
+        centralWidget = QtWidgets.QWidget(window)
         self.centralWidget = centralWidget
+        window.setCentralWidget(centralWidget)
         centralWidget.setObjectName("centralWidget")
         centralWidget.setStyleSheet("* {\n"
 "  color: #000000;\n"
@@ -93,6 +96,23 @@ class Ui_centralWidget(object):
 "  border-radius: 15px;\n"
 "  border-color: black;\n"
 "}")
+        # self.menubar = QtWidgets.QMenuBar(window)
+        # self.menubar.setGeometry(QtCore.QRect(0, 0, 584, 21))
+        # self.menubar.setObjectName("menubar")
+        # self.menuPreferences = QtWidgets.QMenu(self.menubar)
+        # self.menuPreferences.setObjectName("menuPreferences")
+        # window.setMenuBar(self.menubar)
+
+        # self.setPreferencesAction = QtWidgets.QAction(window)
+        # self.setPreferencesAction.setObjectName("setPreferencesAction")
+        # self.menuPreferences.addAction(self.setPreferencesAction)
+
+        # self.setPreferencesAction2 = QtWidgets.QAction(window)
+        # self.setPreferencesAction2.setObjectName("setPreferencesAction2")
+        # self.menuPreferences.addAction(self.setPreferencesAction2)
+
+        # self.menubar.addAction(self.menuPreferences.menuAction())
+
         self.horizontalLayout = QtWidgets.QHBoxLayout(centralWidget)
         self.horizontalLayout.setContentsMargins(0, 0, 0, 0)
         self.horizontalLayout.setSpacing(0)
@@ -136,7 +156,7 @@ class Ui_centralWidget(object):
 
         self.password = QtWidgets.QPushButton(self.headerFrame)
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap("static/icon/settings.svg"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon.addPixmap(QtGui.QPixmap("static/icon/lock.svg"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
 
         self.password.setIcon(icon)
         self.password.setObjectName("password")
@@ -332,10 +352,12 @@ class Ui_centralWidget(object):
         self.verticalLayout.addWidget(self.cardsFrame, 0, QtCore.Qt.AlignLeft)
         self.horizontalLayout.addWidget(self.mainbody)
 
-        self.retranslateUi(centralWidget)
-        QtCore.QMetaObject.connectSlotsByName(centralWidget)
+        self.retranslateUi(window)
+        QtCore.QMetaObject.connectSlotsByName(window)
 
         centralWidget.setFixedSize(centralWidget.sizeHint())
+        window.setFixedSize(window.sizeHint())
+
 
 ####
         self.dpts = []
@@ -346,9 +368,9 @@ class Ui_centralWidget(object):
         self.worker = None
         self.thread = None
 
-    def retranslateUi(self, centralWidget):
+    def retranslateUi(self, window):
         _translate = QtCore.QCoreApplication.translate
-        centralWidget.setWindowTitle(_translate("centralWidget", "DataHub"))
+        window.setWindowTitle(_translate("window", "DataHub"))
         self.appHeader.setText(_translate("centralWidget", "DataHub"))
         self.label_2.setText(_translate("centralWidget", "File Upload              "))
         self.label_8.setText(_translate("centralWidget", "Select type:"))
@@ -375,6 +397,10 @@ class Ui_centralWidget(object):
         self.genSpreadsheetButton.setText(_translate("centralWidget", "Generate"))
 
         self.newprofile.setText(_translate("centralWidget", " New profile"))
+
+        # self.menuPreferences.setTitle(_translate("window", "Profiles"))
+        # self.setPreferencesAction.setText(_translate("window", "New"))
+        # self.setPreferencesAction2.setText(_translate("window", "Import"))
 
     def attach_event_handlers(self):
         self.selectFileButton.clicked.connect(self.select_handler)
@@ -1000,6 +1026,22 @@ class Worker(QObject):
             self.show_message.emit('{} Matric numbers found'.format(count), False)
             self.set_mat_no_list.emit(mat_nos)
         self.finished.emit()
+
+class MainWindow(QtWidgets.QMainWindow):
+
+    def __init__(self, parent=None):
+        super(MainWindow, self).__init__(parent)
+        self.ui = Ui_centralWidget()
+        self.ui.setupUi(self)
+
+    @QtCore.pyqtSlot(bool)
+    def on_setPreferencesAction_triggered(self, triggered):
+        print(triggered)
+
+    @QtCore.pyqtSlot(bool)
+    def on_setPreferencesAction2_triggered(self, triggered):
+        print(triggered)
+
         
 if __name__ == "__main__":
     import sys
@@ -1009,8 +1051,6 @@ if __name__ == "__main__":
     icon.addPixmap(QtGui.QPixmap("static/icon/monitor.svg"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
 
     app.setWindowIcon(icon)
-    centralWidget = QtWidgets.QWidget()
-    ui = Ui_centralWidget()
-    ui.setupUi(centralWidget)
-    centralWidget.show()
+    window = MainWindow()
+    window.show()
     sys.exit(app.exec_())
