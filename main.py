@@ -338,15 +338,13 @@ class Ui_centralWidget(object):
         centralWidget.setFixedSize(centralWidget.sizeHint())
 
 ####
+        self.dpts = []
         self.configure_profile()
         self.attach_event_handlers()
         self.files = None
         self.progress = ProgressDialog(centralWidget, self.get_size_from_ratio(2.5, 3.5))
         self.worker = None
         self.thread = None
-        self.dpts = []
-        self.load_departments()
-
 
     def retranslateUi(self, centralWidget):
         _translate = QtCore.QCoreApplication.translate
@@ -395,6 +393,7 @@ class Ui_centralWidget(object):
     def change_profile(self, index):
         if not self.loading_profile:
             self.profile.setCurrentProfile(self.profile.profiles[index])
+            self.load_departments()
 
 
     def new_profile_handler(self):
@@ -409,6 +408,8 @@ class Ui_centralWidget(object):
         self.loading_profile = True
         for i in range(0, len(self.profile.profiles)):
             self.profileSel.removeItem(i)
+        for i in range(self.profileSel.count()):
+            self.profileSel.removeItem(i)
         for i in range(0, len(self.profile.profiles)):
             pr = self.profile.profiles[i]
             if str(pr.id) == str(self.profile.profile.id):
@@ -419,15 +420,18 @@ class Ui_centralWidget(object):
                 self.profileSel.addItem(pr.name)
         session.close()
         self.profileSel.setCurrentIndex(index)
+        self.load_departments()
         self.loading_profile = False
 
     def load_departments(self):
-        for i in range(0, len(self.dpts)):
-            self.comboBoxz.removeItem(i + 1)
+        for i in range(1, len(self.dpts) + 1):
+            self.comboBoxz.removeItem(i)
         session = self.profile.pdb.Session()
         self.dpts = session.query(Department).all()
-        
-        for i in range(0, len(self.dpts)):
+
+        for i in range(1, self.comboBoxz.count()):
+            self.comboBoxz.removeItem(i)
+        for i in range(len(self.dpts)):
             dpt = self.dpts[i]
             if self.comboBoxz.itemText(i + 1) != "":
                 self.comboBoxz.setItemText(i + 1, '{}: {}'.format(dpt.department, dpt.code))
