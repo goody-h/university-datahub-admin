@@ -3,3 +3,4 @@ tmp
 output
 db
 **/*_tmp.py
+templates/
