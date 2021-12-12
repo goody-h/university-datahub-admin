@@ -95,7 +95,7 @@ class SummarySheet(object):
 
 
     def _create_degree_result_(self, results):
-        results.sort(key = lambda e: (-e['set'], e['user']['name'], -self.dpts.count(e['dpt']), e['sn']))
+        results.sort(key = lambda e: (e['set'], e['user']['name'], -self.dpts.count(e['dpt']), e['sn']))
 
         ws = self._wb['Degree Result']
 
