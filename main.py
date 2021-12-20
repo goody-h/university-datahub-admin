@@ -1,4 +1,4 @@
-import re, sys, os, time, math
+import re, sys, os, math
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import QSize, Qt
 from PyQt5.QtWidgets import QMessageBox
@@ -18,8 +18,10 @@ from models.result import Result
 from models.student import Student
 from models.course import Course
 from models.department import Department
-from config.profile import ProfileManager
+from config.profile_handler import ProfileHandler
 from services.storage import Storage
+from services.time import Time
+from services.stager import Stager
 
 import tkinter as tk
 from tkinter import filedialog
@@ -407,65 +409,13 @@ class Ui_centralWidget(object):
         self.uploadButton.clicked.connect(self.upload_handler)
         self.genSpreadsheetButton.clicked.connect(self.spreadsheet_handler)
         self.uploadButtonx.clicked.connect(self.uploadlist_handler)
-        self.password.clicked.connect(self.set_password_handler)
+        self.password.clicked.connect(self.profile_handler.update_profile_settings)
+        self.profileSel.currentIndexChanged.connect(self.profile_handler.change_profile)
+        self.newprofile.clicked.connect(self.profile_handler.create_new_profile)
 
     def configure_profile(self):
-        self.profile = ProfileManager()
-        self.profile.getCurrentProfile()
-        self.load_profiles()
-        self.profileSel.currentIndexChanged.connect(self.change_profile)
-        self.newprofile.clicked.connect(self.new_profile_handler)
-
-    def change_profile(self, index):
-        if not self.loading_profile:
-            self.profile.setCurrentProfile(self.profile.profiles[index])
-            self.load_departments()
-
-
-    def new_profile_handler(self):
-        text, ok = QtWidgets.QInputDialog.getText(self.centralWidget, "Attention", "Profile Name?")
-        if ok and text != '' and text != None:
-            self.profile.createNewProfile(text)
-            self.load_profiles()
-
-    def load_profiles(self):
-        session = self.profile.pdb.Session()
-        index = 0
-        self.loading_profile = True
-        for i in range(0, len(self.profile.profiles)):
-            self.profileSel.removeItem(i)
-        for i in range(self.profileSel.count()):
-            self.profileSel.removeItem(i)
-        for i in range(0, len(self.profile.profiles)):
-            pr = self.profile.profiles[i]
-            if str(pr.id) == str(self.profile.profile.id):
-                index = i
-            if self.profileSel.itemText(i) != "":
-                self.profileSel.setItemText(i, pr.name)
-            else:
-                self.profileSel.addItem(pr.name)
-        session.close()
-        self.profileSel.setCurrentIndex(index)
-        self.load_departments()
-        self.loading_profile = False
-
-    def load_departments(self):
-        for i in range(1, len(self.dpts) + 1):
-            self.comboBoxz.removeItem(i)
-        session = self.profile.pdb.Session()
-        self.dpts = session.query(Department).all()
-
-        for i in range(1, self.comboBoxz.count()):
-            self.comboBoxz.removeItem(i)
-        for i in range(len(self.dpts)):
-            dpt = self.dpts[i]
-            if self.comboBoxz.itemText(i + 1) != "":
-                self.comboBoxz.setItemText(i + 1, '{}: {}'.format(dpt.department, dpt.code))
-            else:
-                self.comboBoxz.addItem('{}: {}'.format(dpt.department, dpt.code))
-        session.close()
-        if len(self.dpts) == 1:
-            self.comboBoxz.setCurrentIndex(1)
+        self.profile_handler = ProfileHandler(self)
+        self.profile_handler.initialize()
 
     def create_thread(self, worker, exec):
         self.thread = QThread()
@@ -480,45 +430,11 @@ class Ui_centralWidget(object):
         worker.show_progress.connect(self.progress.show)
         worker.update_progress.connect(self.progress.update)
         worker.cancel_progress.connect(self.progress.close)
-        worker.load_departments.connect(self.load_departments)
+        worker.load_departments.connect(self.profile_handler.ui_config.load_departments)
         return self.thread
 
-    def set_password_handler(self):
-        crypto = CryptoManager(self.profile.pdb)
-        status = crypto.load_keys()
-        if status == "none":
-            passwd = None
-            while True:
-                title = "Current Password?" if passwd == None else "Current Password? (Incorrect, Try Again!)"
-                text, ok = QtWidgets.QInputDialog.getText(self.centralWidget, "Attention", title, QtWidgets.QLineEdit.Password)
-                if not ok:
-                    break
-                passwd = text
-                status = crypto.load_keys(passwd)
-                if status == 'correct':
-                    break
-
-        if status == 'correct' or status == 'default':
-            new, ok = QtWidgets.QInputDialog.getText(self.centralWidget, "Attention", "New Password?", QtWidgets.QLineEdit.Password)
-            if not ok:
-                self.show_message('Cancelled', False)
-                return
-            passwd = None
-            while True:
-                title = "Confirm New Password" if passwd == None else "Confirm New Password (Incorrect, Try Again!)"
-                confirm, ok = QtWidgets.QInputDialog.getText(self.centralWidget, "Attention", title, QtWidgets.QLineEdit.Password)
-                passwd = confirm
-                if not ok:
-                    self.show_message('Cancelled', False)
-                    return
-                if passwd == new:
-                    crypto.set_password(passwd)
-                    self.show_message('Password change success!', False)
-                    break
-
-
     def spreadsheet_handler(self):
-        crypto = CryptoManager(self.profile.pdb)
+        crypto = CryptoManager(self.profile_handler.profile.pdb.Session)
         self.worker = Worker(self, crypto)
         self.thread = self.create_thread(worker = self.worker, exec = self.worker.spreadsheet_handler)
         self.thread.start()
@@ -531,7 +447,7 @@ class Ui_centralWidget(object):
             if self.files == None or len(self.files) == 0:
                 self.show_message('No file selected, please select a file', False)
                 return
-            crypto = CryptoManager(self.profile.pdb)
+            crypto = CryptoManager(self.profile_handler.profile.pdb.Session)
             status = crypto.load_keys()
             if status == "none":
                 passwd = None
@@ -546,6 +462,7 @@ class Ui_centralWidget(object):
                         break
             if status == 'correct' or status == 'default':
                 self.worker = Worker(self, crypto)
+                self.profile_handler.decrypt_write_config(crypto)
                 self.thread = self.create_thread(worker = self.worker, exec = self.worker.upload_handler)
                 self.thread.start()
 
@@ -658,7 +575,7 @@ class Worker(QObject):
     def __init__(self, app, cryptoMan = None) -> None:
         super().__init__()
         self.app = app
-        self.session = app.profile.pdb.Session()
+        self.Session = app.profile_handler.getSession()
         self.cryptoMan = cryptoMan
 
     finished = pyqtSignal()
@@ -669,16 +586,9 @@ class Worker(QObject):
     update_progress = pyqtSignal(int)
     cancel_progress = pyqtSignal()
     load_departments = pyqtSignal()
-
-    def create_folder(self, folder):
-        try:
-            os.mkdir(folder)
-            print('{} directory created'.format(folder))
-        except:
-            print('{} directory already exists, skipping'. format(folder))
     
     def get_time_suffix(self):
-        return str(math.floor(time.time()) % 10000000)
+        return str(Time().get_time_in_sec() % 10000000)
 
     def spreadsheet_handler(self):
         mats = self.app.matNumberLineEdit.text().upper().rstrip(',')
@@ -696,14 +606,14 @@ class Worker(QObject):
             self.finished.emit()
             return 
         
+        self.session = self.Session()
         store = Storage()
         output_path = store.get_outpur_dir()
         folder = output_path
-        self.create_folder(folder)
         if (len(mat_list) > 1 and gensh) or operations.count(True) > 1:
             folder = output_path + 'Output_Batch_{}/'.format(suffix)
             folder = store.sep(folder)
-            self.create_folder(folder)
+            store.create_folder(folder)
 
         group = {
             'no_result': {'v': [], 'i': 'No result', 's': 'No results found'}, 'no_dept': {'v': [], 'i': 'Unkown department', 's': 'Student\'s department unknown. Please select a department'},
@@ -855,7 +765,7 @@ class Worker(QObject):
         self.finished.emit()
 
 
-    def table_upload(self, mapper, object, delete):
+    def table_upload(self, key, mapper, object, delete, get):
         if self.app.files != None and len(self.app.files) > 0:
             success = 0
             failure = 0
@@ -866,6 +776,8 @@ class Worker(QObject):
             isDelete = self.app.delButton.isChecked()
             self.show_progress.emit(1+ len(self.app.files) * 1000000)
 
+            is_remote_write = self.app.profile_handler.settings.is_remote_write()
+            stager = Stager(self.session, is_remote_write)
             for file in self.app.files:
                 master = mapper(file)
                 master.batchId = batch
@@ -873,40 +785,38 @@ class Worker(QObject):
                 inc = math.floor(1000000 / max(len(results), 1))
                 
                 for data in results:
-                    record = object(data)
-                    record.timestamp = math.floor(time.time())
+                    _isdelete = (data.get('delete') != None and str(data.get('delete')).lower() == 'true') or isDelete
+                    record = object(data, _isdelete)
+                    record._timestamp_ = Time().get_time_in_sec()
                     if self.cryptoMan != None:
                         record._signature_ = self.cryptoMan.sign(record)
-                    if (data.get('delete') != None and str(data.get('delete')).lower() == 'true') or isDelete:
-                        delt = delete(data, self.session, False)
+                    if _isdelete:
+                        delt = delete(data, self.session, stager)
                         if delt > 0:
-                            deleted += 1
+                            deleted += delt
                             data['status'] = "deleted"
-                            self.session.commit()
+                            stager.stage_record(record, key(data), self.cryptoMan)
                         else:
                             data['status'] = "not_found"
                     else:
-                        self.session.add(record)
                         try:
-                            self.session.commit()
-                            data['status'] = "created"
-                            success += 1
-                        except Exception as e:
-                            self.session.rollback()
-                            try:
-                                delete(data, self.session, True)
-                                self.session.commit()
-                                self.session.add(record)
-                                self.session.commit()
+                            rc = get(data, self.session, stager)
+                            self.session.merge(record)
+                            stager.stage_record(record, key(data), self.cryptoMan)
+                            if rc == None:
+                                data['status'] = "created"
+                                success += 1
+                            else:
                                 data['status'] = "updated"
                                 update += 1
-                            except Exception as e:
-                                self.session.rollback()
-                                data['status'] = "error"
-                                data['error'] = e
-                                failure += 1
+                        except Exception as e:
+                            data['status'] = "error"
+                            data['error'] = e
+                            failure += 1
                     print(data)
                     self.update_progress.emit(inc)
+            self.session.commit()
+            
             self.cancel_progress.emit()
             self.reset_files.emit()
             self.show_message.emit('Operation completed\n\nAdded: {}\nUpdated: {}\nDeleted: {}\nFailed: {}\n\nBatch ID: {}'.format(success, update, deleted, failure, batch), False)
@@ -915,38 +825,70 @@ class Worker(QObject):
 
     def mastersheet_upload(self):
         self.table_upload(
+            key = lambda data: 'resultId',
             mapper = lambda file: MasterSheet(file),
-            object = lambda data: Result(
+            object = lambda data, delete: Result(
                 resultId = data['resultId'],
                 batchId = data['batchId'],
                 session = data['session'],
                 courseId = data['courseId'],
                 courseCode = data['courseCode'],
-                mat_no = data['mat_no'],
+                mat_no = data['mat_no'] if not delete else data['mat_no'] + '_',
                 annotation = data['annotation'],
                 score = data['score'],
-                status = "UP",
+                status = "UP" if not delete else "DELETE",
             ),
-            delete = lambda data, session, update: session.query(Result)
-                .filter(Result.resultId == data['resultId']).delete()
+            delete = lambda data, session, stager: session.query(Result)
+                .filter(Result.resultId == data['resultId']).delete(),
+            get = lambda data, session, stager: session.query(Result).filter(Result.resultId == data['resultId']).first()
         )
 
     def department_upload(self):
         self.table_upload(
+            key = lambda data: 'courseId' if data['type'] == 'course' else 'id',
             mapper = lambda file: CourseList(file),
             object = self.department_object,
-            delete = self.del_dept
+            delete = self.del_dept,
+            get = self.get_dept
         )
         self.load_departments.emit()
             
-    def del_dept(self, data, session, isUpdate):
+    def get_dept(self, data, session, stager: Stager):
         if data['type'] == 'course':
-            return session.query(Course).filter(Course.id == data['courseId']).delete()
+            return session.query(Course).filter(Course.id == data['courseId']).first()
         else:
+            if stager.is_writer:
+                crs = session.query(Course).filter(Course.department == data['id']).all()
+                for c in crs:
+                    obj, strg = stager.serialize_object(c)
+                    obj['type'] = 'course'
+                    obj = self.department_object(obj, True)
+                    obj._timestamp_ = Time().get_time_in_sec()
+                    if self.cryptoMan != None:
+                        obj._signature_ = self.cryptoMan.sign(obj)
+                    stager.stage_record(obj, 'courseId', self.cryptoMan)
+
+            session.query(Course).filter(Course.department == data['id']).delete()
+            return session.query(Department).filter(Department.id == data['id']).first()
+
+    def del_dept(self, data, session, stager):
+        if data['type'] == 'course':
+            return session.query(Course).filter(Course.courseId == data['courseId']).delete()
+        else:
+            if stager.is_writer:
+                crs = session.query(Course).filter(Course.department == data['id']).all()
+                for c in crs:
+                    obj, strg = stager.serialize_object(c)
+                    obj['type'] = 'course'
+                    obj = self.department_object(obj, True)
+                    obj._timestamp_ = Time().get_time_in_sec()
+                    if self.cryptoMan != None:
+                        obj._signature_ = self.cryptoMan.sign(obj)
+                    stager.stage_record(obj, 'courseId', self.cryptoMan)
             c = session.query(Course).filter(Course.department == data['id']).delete()
             return int(session.query(Department).filter(Department.id == data['id']).delete()) + int(c)
 
-    def department_object(self, data):
+    def department_object(self, data, delete):
         if data['type'] == 'course':
             return Course(
                 courseId = data['courseId'],
@@ -957,8 +899,8 @@ class Worker(QObject):
                 properties = data['properties'],
                 level = data['level'],
                 sem = data['sem'],
-                department = data['department'],
-                status = "UP",
+                department = data['department'] if not delete else data['department'] + "_",
+                status = "UP" if not delete else "DELETE",
             )
         else:
             return Department(
@@ -973,13 +915,14 @@ class Worker(QObject):
                 summary = data['summary'],
                 spreadsheet = data['spreadsheet'],
                 max_cu = data['max_cu'],
-                status = "UP",
+                status = "UP" if not delete else "DELETE",
             )
 
     def biodata_upload(self):
         self.table_upload(
+            key = lambda data: 'mat_no',
             mapper = lambda file: StudentList(file),
-            object = lambda data: Student(
+            object = lambda data, delete: Student(
                 batchId = data['batchId'],
                 mat_no = data['mat_no'],
                 state = data['state'],
@@ -990,13 +933,15 @@ class Worker(QObject):
                 last_name = data['last_name'],
                 first_name = data['first_name'],
                 other_names = data['other_names'],
-                status = "UP",
+                status = "UP" if not delete else "DELETE",
             ),
-            delete = lambda data, session, update: session.query(Student)
-                .filter(Student.mat_no == data['mat_no']).delete()
+            delete = lambda data, session, stager: session.query(Student)
+                .filter(Student.mat_no == data['mat_no']).delete(),
+            get = lambda data, session, stager: session.query(Student).filter(Student.mat_no == data['mat_no']).first()
         )
         
     def upload_handler(self):
+        self.session = self.Session()
         index = self.app.comboBox.currentIndex()
         if index == 0:
             self.show_message.emit('Please select an upload type', False)

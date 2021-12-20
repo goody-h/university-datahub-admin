@@ -1,8 +1,9 @@
-import math, time, re, os
+import re, os
+from services.time import Time
 from database.app import appEngine, AppSession
 from models.config import Config
 from models.profile import Profile
-from database.model import Base, AppBase, ProfileBase
+from database.model import Base, AppBase
 from database.profile import ProfileDb
 
 Base.metadata.create_all(appEngine)
@@ -25,7 +26,7 @@ class ProfileManager(object):
         else:
             id = self.rnd_id()
             config = Config(config="current_profile", value=id)
-            profile = Profile(id=id, name='Default', timestamp = math.floor(time.time()))
+            profile = Profile(id=id, name='Default', _timestamp_ = Time().get_time_in_sec())
             session.add(profile)
             self.store_current_profile(config)
             session.commit()
@@ -36,15 +37,8 @@ class ProfileManager(object):
 
     def store_current_profile(self, config):
         session = AppSession()
-        try:
-            session.add(config)
-            session.commit()
-        except:
-            session.rollback()
-            session.query(Config).filter(Config.config == "current_profile").delete()
-            session.commit()
-            session.add(config)
-            session.commit()
+        session.merge(config)
+        session.commit()
         session.close()
 
     def setCurrentProfile(self, profile):
@@ -58,8 +52,16 @@ class ProfileManager(object):
         config = Config(config="current_profile", value=id)
         self.store_current_profile(config)
         session = AppSession()
-        profile = Profile(id=id, name=name, timestamp = math.floor(time.time()))
+        profile = Profile(id=id, name=name, _timestamp_ = Time().get_time_in_sec())
         session.add(profile)
+        session.commit()
+        session.close()
+        self.getCurrentProfile()
+
+    def renameProfile(self, name):
+        session = AppSession()
+        profile = Profile(id=self.profile.id, name=name, _timestamp_ = Time().get_time_in_sec())
+        session.merge(profile)
         session.commit()
         session.close()
         self.getCurrentProfile()
@@ -75,8 +77,10 @@ class ProfileManager(object):
     def escape_chars(self, value):
         return re.sub(r'[^\w\-_\.]', '_', value)
 
+    def get_profile_filename(self, profile):
+        return profile.id + '_' + self.escape_chars(profile.name)
+
     def loadProfile(self, profile):
-        id = profile.id + '_' + self.escape_chars(profile.name)
+        id = self.get_profile_filename(profile)
         self.pdb.load_profile(id)
-        ProfileBase.metadata.create_all(self.pdb.engine)
-        Base.metadata.create_all(self.pdb.engine)
+        self.pdb.create_schema()

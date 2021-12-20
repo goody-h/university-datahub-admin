@@ -2,12 +2,14 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from database.base import Base
 
-class ProfileDb(Base):
+class DataDb(Base):
+    def __init__(self, file) -> None:
+        super().__init__()
+        self.db_file = file
+        self.load()
 
-    def load_profile(self, id):
+    def load(self):
         if self.engine != None:
             self.engine.dispose()
-        self.id = id
-        self.db_file = self.store.get_db_dir() + 'profile_{}.db'.format(id)
         self.engine = create_engine('sqlite:///{}'.format(self.db_file))
         self.Session = sessionmaker(bind=self.engine)

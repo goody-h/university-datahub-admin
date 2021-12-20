@@ -1,6 +1,4 @@
 import base64, json
-import math
-import time
 from Crypto.Hash import SHA256
 
 from Crypto.Signature import PKCS1_v1_5
@@ -12,21 +10,31 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from models.config import Config
+from services.stager import Stager
+from services.time import Time
+
 
 class CryptoManager(object):
-    def __init__(self, db):
+    def __init__(self, Session):
         super().__init__()
-        self.Session = db.Session
+        self.Session = Session
         self.private_key = None
         self.public_key = None
+        self.keyPrefix = ""
 
-    def set_password(self, password):
-        if type(self.private_key) == type(None) or type(self.public_key) == type(None):
+    def setKeyPrefix(self, prefix: str):
+        self.keyPrefix = prefix
+
+    def set_password(self, password, is_remote_write):
+        if not self.is_loaded():
             return
         if password == "" or password == None:
             password = 'TestPassword'
         e_key_pem = self.encrypt_with_password(password.encode(), self.private_key.export_key())
         self.save_keys(self.private_key, e_key_pem.decode())
+        stager = Stager(self.Session(), is_remote_write)
+        stager.stage_config(self)
+        stager.commit()
 
     def load_keys(self, password = None):
         check = self.password_and_key_check(password)
@@ -36,45 +44,38 @@ class CryptoManager(object):
             self.save_keys(self.private_key)
         return check['pass_state']
 
-    def save_keys(self, pr_key, e_pr_pem = None):
+    def save_keys(self, pr_key, e_pr_pem = None, pu_pem = None):
         session = self.Session()
-        pu_key = pr_key.publickey()
-        pu_pem = pu_key.export_key().decode()
+        if pu_pem == None and type(pr_key) != type(None):
+            pu_key = pr_key.publickey()
+            pu_pem = pu_key.export_key().decode()
         pu_pem = Config(
-            config = "public_key_pem",
+            config = self.keyPrefix + "public_key_pem",
             value = pu_pem,
-            annotation = "",
+            annotation = "key",
             status = "UP",
-            timestamp = math.floor(time.time()),
+            _timestamp_ = Time().get_time_in_sec(),
             _signature_ =  ""
         )
         if e_pr_pem != None:
             e_pr_pem = Config(
-                config = "e_private_key_pem",
+                config = self.keyPrefix + "e_private_key_pem",
                 value = e_pr_pem,
-                annotation = "",
+                annotation = "key",
                 status = "UP",
-                timestamp = math.floor(time.time()),
+                _timestamp_ = Time().get_time_in_sec(),
                 _signature_ =  ""
             )
-        while True:
-            session.add(pu_pem)
-            if e_pr_pem != None:
-                session.add(e_pr_pem)
-            try:
-                session.commit()
-                break
-            except:
-                session.rollback()
-                session.query(Config).filter(Config.config == "public_key_pem").delete()
-                if e_pr_pem != None:
-                    session.query(Config).filter(Config.config == "e_private_key_pem").delete()
-                session.commit()
+        if pu_pem != None:
+            session.merge(pu_pem)
+        if e_pr_pem != None:
+            session.merge(e_pr_pem)
+        session.commit()
         session.close()
 
     def get_encrypted_key(self):
         session = self.Session()
-        key = session.query(Config).filter(Config.config == "e_private_key_pem").first()
+        key = session.query(Config).filter(Config.config == self.keyPrefix + "e_private_key_pem").first()
         if key != None:
             key = key.value
         session.close()
@@ -82,7 +83,7 @@ class CryptoManager(object):
 
     def get_public_key(self):
         session = self.Session()
-        key = session.query(Config).filter(Config.config == "public_key_pem").first()
+        key = session.query(Config).filter(Config.config == self.keyPrefix + "public_key_pem").first()
         if key != None:
             key = key.value
             self.public_key = RSA.import_key(key)
@@ -137,18 +138,34 @@ class CryptoManager(object):
         decrypted = fernet.decrypt(source)
         return decrypted
 
-    def encrypt_with_key(self, source):
-        if type(self.private_key) == type(None) or type(self.public_key) == type(None):
+    def encrypt_with_key(self, source: str) -> str:
+        if not self.is_pub_loaded():
             return
         cipher = PKCS1_OAEP.new(key=self.public_key)
-        result = cipher.encrypt(source)
+        result = ""
+        while True:
+            part = source[0:86]
+            source = source[86:]
+            result += cipher.encrypt(part.encode()).hex()
+            if len(source) == 0:
+                break
+            else: result += '-'
         return result
 
-    def decrypt_with_key(self, source):
-        if type(self.private_key) == type(None) or type(self.public_key) == type(None):
+    def is_loaded(self):
+        return type(self.private_key) != type(None) and type(self.public_key) != type(None)
+
+    def is_pub_loaded(self):
+        return type(self.public_key) != type(None)
+
+    def decrypt_with_key(self, source: str) -> str:
+        if not self.is_loaded():
             return
         cipher = PKCS1_OAEP.new(key=self.private_key)
-        result = cipher.decrypt(source)
+        result = ""
+        for part in source.split('-'):
+            part = bytes.fromhex(part)
+            result += cipher.decrypt(part).decode()
         return result
 
     def new_private_key(self):
@@ -156,7 +173,7 @@ class CryptoManager(object):
         return private_key        
     
     def sign(self, payload):
-        if type(self.private_key) == type(None):
+        if not self.is_loaded():
             return
         if type(payload) != str:
             payload = self.serialize_object(payload)
@@ -167,14 +184,17 @@ class CryptoManager(object):
 
     def verify_signature(self, payload, signature):
         self.get_public_key()
-        if type(self.public_key) == type(None):
+        verified = False
+        if not self.is_pub_loaded():
             # NO PUBLIC KEY ERROR
-            return False
-        if type(payload) != str:
-            payload = self.serialize_object(payload)
-        verifier = PKCS1_v1_5.new(self.public_key)
-        digest = SHA256.new(payload.encode())
-        verified = verifier.verify(digest, bytes.fromhex(signature))
+            return verified
+        try:
+            if type(payload) != str:
+                payload = self.serialize_object(payload)
+            verifier = PKCS1_v1_5.new(self.public_key)
+            digest = SHA256.new(payload.encode())
+            verified = verifier.verify(digest, bytes.fromhex(signature))
+        except: pass
         return verified
 
     def serialize_object(self, obj):
@@ -186,10 +206,8 @@ class CryptoManager(object):
         return value
 
     def is_serializable(self, value):
-        try:
-            json.JSONEncoder().encode(value)
-            return True
-        except:
-            return False
+        try: json.JSONEncoder().encode(value)
+        except: return False
+        return True
 
 

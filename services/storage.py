@@ -19,7 +19,7 @@ class Storage(object):
                 os.mkdir(rnd)
                 os.rmdir(rnd)
                 if not os.path.exists(dir):
-                    os.mkdir(dir)
+                    os.makedirs(dir)
                     print('{} directory created'.format(dir))
                 return self.sep(app_path(dir) + '/')
             except: pass
@@ -27,11 +27,21 @@ class Storage(object):
         os.makedirs(home, exist_ok=True)
         return self.sep(home)
 
+    def create_folder(self, folder):
+        try:
+            os.mkdir(folder)
+            print('{} directory created'.format(folder))
+        except:
+            print('{} directory already exists, skipping'. format(folder))
+
     def sep(self, path):
         return path.replace('/', os.path.sep)
 
     def get_db_dir(self):
         return self.get_write_dir('db')
+
+    def get_tmp_db_dir(self):
+        return self.get_write_dir('db/tmp')
 
     def get_outpur_dir(self):
         return self.get_write_dir('output')

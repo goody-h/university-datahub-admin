@@ -2,5 +2,5 @@ __pycache__
 tmp
 output
 db
-**/*_tmp.py
+**/*_tmp.*
 templates/

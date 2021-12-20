@@ -4,15 +4,15 @@ from database.model import ProfileBase
 class Result(ProfileBase):
     __tablename__ = 'results'
 
-    resultId = Column(String, primary_key=True)
-    batchId = Column(String)
+    resultId = Column(String(30), primary_key=True)
+    batchId = Column(String(35))
     session = Column(Integer)
-    courseId = Column(String)
-    courseCode = Column(String)
-    mat_no = Column(String)
-    annotation = Column(String)
+    courseId = Column(String(10))
+    courseCode = Column(String(10))
+    mat_no = Column(String(15))
+    annotation = Column(String(700))
     score = Column(Integer)
-    status = Column(String)
-    timestamp = Column(Integer)
-    _signature_ = Column(String)
+    status = Column(String(10))
+    _timestamp_ = Column('timestamp', Integer)
+    _signature_ = Column(String(260))
 
