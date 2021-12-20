@@ -112,6 +112,8 @@ class TableMapper(object):
             row['annotation'] = annotation
             if self.__modify_row__(row):
                 row['annotation'] = JSONEncoder().encode(row['annotation'])
+                if len(row['annotation']) >= 700:
+                    row['annotation'] = "{}"
                 self.data_rows.append(row)
 
     def sanitize(self, value):

@@ -84,19 +84,19 @@ class _Level(object):
                 self.props.append('no-extra{}'.format(semester))
                 self.sem_tcu[semester] = 0
                 for res in self.results[semester - 1]:
-                    res['reason'] += '[No extra courses allowed in level {}, semester {}] \n'.format(self.level * 100, semester)
+                    res['reason'] += '[No extra courses allowed in this session] \n'
                     self.result_map[res['courseCode']] = None
                 self.reject.extend(self.results[semester - 1])
                 self.results[semester - 1].clear()
 
-            if self.props.count('no-extra{}'.format(semester)) == 0 or len(ne_prop) > 1:
+            if self.props.count('no-extra{}'.format(semester)) == 0 or len(ne_prop) > 1 or result.get('score') == None:
                 self.results[semester - 1].append(result)
                 self.result_map[result['courseCode']] = result
                 au_prop = re.split('(add-unit)', str(result['properties']))
                 if not (len(au_prop) > 1 or result.get('cu') == None):
                     self.sem_tcu[semester] += result['cu']
             else:
-                result['reason'] += '[No extra courses allowed in level {}, semester {}] \n'.format(self.level * 100, semester)
+                result['reason'] += '[No extra courses allowed in this session] \n'
                 self.reject.append(result)
     
     def commit_unknowns(self, results, wb, has_reason = False):
@@ -289,26 +289,26 @@ class CourseFilter(ResultFilter):
             self.reject.append(result)
             return False
         result.update(course)
-        if self.cache['last_sem'] == 100:
-            l_session = self.data['sessions'].get(result['session'])
-            if l_session == None:
-                l_session = 100
-            sem_id = result['level'] + result['sem']
-            if result['sem'] > l_session % 100:
-                sem_id = max(l_session - (l_session % 100), result['level']) + result['sem']
-            if l_session == None or sem_id > l_session:
-                self.data['sessions'][result['session']] = sem_id
-            if sem_id > self.data['last_sem']:
-                self.data['last_sem'] = sem_id
+        # if self.cache['last_sem'] == 100:
+        l_session = self.data['sessions'].get(result['session'])
+        if l_session == None:
+            l_session = 100
+        sem_id = result['level'] + result['sem']
+        if result['sem'] > l_session % 100:
+            sem_id = max(l_session - (l_session % 100), result['level']) + result['sem']
+        if l_session == None or sem_id > l_session:
+            self.data['sessions'][result['session']] = sem_id
+        if sem_id > self.data['last_sem']:
+            self.data['last_sem'] = sem_id
         self.hold.append(result)
         return False
 
     def release_hold(self):
-        if self.cache['last_sem'] == 100:
-            self.cache.update(session_utils.rectify(self.data['sessions'], self.department.levels, self.department.semesters, self.missed_sessions))
-            if self.wb != None:
-                unknown = _Level(None, None, None, None, None)
-                unknown.commit_unknowns(self.reject, self.wb)
+        # if self.cache['last_sem'] == 100:
+        self.cache.update(session_utils.rectify(self.data['sessions'], self.department.levels, self.department.semesters, self.missed_sessions))
+        if self.wb != None:
+            unknown = _Level(None, None, None, None, None)
+            unknown.commit_unknowns(self.reject, self.wb)
         return super().release_hold()
 
 class SessionFilter(ResultFilter):
@@ -472,7 +472,7 @@ class MissingFilter(ResultFilter):
                 result = {}
                 result.update(courses[key])
                 session = self.cache['sessions'][int(courses[key]['level']/100) - 1]
-                result.update({'courseCode': key, 'cu': None, '_session': session + 0.5, 'session': session })
+                result.update({'courseCode': key, 'cu': None, '_session': session + 0.5, 'session': session, 'comment': '', 'flags': [], 'reason': '' })
 
                 level = self.cache['sessions'].index(result['session']) + 1
                 sem = result['sem']
