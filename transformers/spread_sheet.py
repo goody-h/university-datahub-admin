@@ -431,7 +431,7 @@ class LevelFilter(ResultFilter):
             _results = level.evaluate_results()
             results.extend(_results)
         if len(self.levels) == 0 and len(self.cache['sessions']) > 0:
-            self.levels[level] = _Level(1, self.cache['sessions'][0], self.wb, self.level_data, self.department, self.user)
+            self.levels[1] = _Level(1, self.cache['sessions'][0], self.wb, self.level_data, self.department, self.user)
         results.sort(key = lambda i: (i['_session'], i['code']))
         self.hold = results
         self.results = results
