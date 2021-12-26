@@ -430,7 +430,7 @@ class Ui_centralWidget(object):
         worker.finished.connect(self.thread.quit)
         worker.finished.connect(worker.deleteLater)
         self.thread.finished.connect(self.thread.deleteLater)
-        worker.show_message.connect(self.show_message)
+        worker.show_message.connect(self.profile_handler.ui_config.show_message)
         worker.reset_files.connect(self.reset_files)
         worker.set_mat_no_list.connect(self.set_mat_no_list)
         worker.show_progress.connect(self.progress.show)
@@ -448,10 +448,10 @@ class Ui_centralWidget(object):
     def upload_handler(self):
         index = self.comboBox.currentIndex()
         if index == 0:
-            self.show_message('Please select an upload type', False)
+            self.profile_handler.ui_config.show_message('Please select an upload type', False)
         else:
             if self.files == None or len(self.files) == 0:
-                self.show_message('No file selected, please select a file', False)
+                self.profile_handler.ui_config.show_message('No file selected, please select a file', False)
                 return
             
             def on_status(status):
@@ -481,14 +481,6 @@ class Ui_centralWidget(object):
             _translate = QtCore.QCoreApplication.translate
             self.label_5.setText(_translate("centralWidget", str(len(files)) + " file(s) selected"))
     
-    def show_message(self, mes, long = True):
-        if long:
-            result = ScrollMessageBox(mes, self.get_size_from_ratio(2, 2))
-            result.setWindowTitle("Info")
-            result.exec_()
-        else:
-            QMessageBox.information(self.centralWidget, 'Info', mes)
-
     def get_text_file(self):
         root = tk.Tk()
         root.withdraw()
@@ -535,6 +527,7 @@ class ProgressDialog(object):
             errBox.addButton(QMessageBox.Ok)
             errBox.exec()
             return
+            
     def onCancelled(self):
         if self.value < self.stop:
             self.show(self.stop, self.value - 1)
@@ -554,20 +547,6 @@ class ProgressDialog(object):
         self.stop = 0
         if not self.progress.wasCanceled():
             self.progress.cancel()
-
-class ScrollMessageBox(QMessageBox):
-    def __init__(self, message, size):
-        QMessageBox.__init__(self)
-        self.setIcon(QMessageBox.Icon.Information)
-        scroll = QtWidgets.QScrollArea(self)
-        scroll.setWidgetResizable(True)
-        self.content = QtWidgets.QWidget()
-        scroll.setWidget(self.content)
-        lay = QtWidgets.QVBoxLayout(self.content)
-        text = QtWidgets.QLabel(message, self)
-        lay.addWidget(text, 0, QtCore.Qt.AlignTop)
-        self.layout().addWidget(scroll, 0, 0, 1, self.layout().columnCount())
-        scroll.setMinimumSize(size)
 
 class Worker(QObject):
     def __init__(self, app, cryptoMan = None) -> None:

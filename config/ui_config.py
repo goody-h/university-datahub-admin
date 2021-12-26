@@ -4,6 +4,11 @@ from PyQt5 import QtWidgets
 from services.crypto import CryptoManager
 from ui.loading_dialog import LoaderHandler
 
+from PyQt5 import QtCore, QtWidgets
+from PyQt5.QtWidgets import QMessageBox
+import math
+from PyQt5.QtCore import QSize
+
 
 class UI_Config(object):
     def __init__(self, ui, profile: ProfileManager) -> None:
@@ -109,3 +114,32 @@ class UI_Config(object):
                 self.thread, self.worker = crypto.new_crypto_worker(lambda worker: worker.set_password, finish, passwd, is_remote_write)
                 # self.ui.show_message('Password change success!', False)
                 break
+
+    def show_message(self, mes, long = True, error = False):
+        if long:
+            result = ScrollMessageBox(mes, self.get_size_from_ratio(2, 2))
+            result.setWindowTitle("Info")
+            result.exec_()
+        elif not error:
+            QMessageBox.information(self.ui.centralWidget, 'Info', mes)
+        else:
+            QMessageBox.critical(self.ui.centralWidget, 'Error', mes)
+    
+    def get_size_from_ratio(self, w = 1, h = 1):
+        size = self.ui.centralWidget.sizeHint()
+        return QSize(math.floor(size.width() / w), math.floor(size.height() / h))
+
+
+class ScrollMessageBox(QMessageBox):
+    def __init__(self, message, size):
+        QMessageBox.__init__(self)
+        self.setIcon(QMessageBox.Icon.Information)
+        scroll = QtWidgets.QScrollArea(self)
+        scroll.setWidgetResizable(True)
+        self.content = QtWidgets.QWidget()
+        scroll.setWidget(self.content)
+        lay = QtWidgets.QVBoxLayout(self.content)
+        text = QtWidgets.QLabel(message, self)
+        lay.addWidget(text, 0, QtCore.Qt.AlignTop)
+        self.layout().addWidget(scroll, 0, 0, 1, self.layout().columnCount())
+        scroll.setMinimumSize(size)

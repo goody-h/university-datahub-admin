@@ -125,6 +125,8 @@ class ProfileDialog(QDialog):
     def get_text(self, input):
         text = None
         input = input.text()
+        if input != None:
+            input = str(input).strip()
         if input != "":
             text = input
         return text
@@ -155,8 +157,8 @@ class ProfileDialog(QDialog):
         if self.mode == 'update':
             old = self.settings
 
-        if name == None: return
-        if read == None and write != None: return
+        if name == None: return self.ph.ui_config.show_message("Please, enter a Profile Name", long=False, error = True)
+        if read == None and write != None: return self.ph.ui_config.show_message("When including write config, read config should also be provided", long=False, error = True)
 
         new = old.clone()
         new.name = name
@@ -168,7 +170,7 @@ class ProfileDialog(QDialog):
 
         if not old.equal(new):
             db = self.db if self.db != None else TempDb().load()
-            self.sh = SettingsHandler(None, old, new, db, self.ph, self.on_finish)
+            self.sh = SettingsHandler(self.ph.ui_config, old, new, db, self.ph, self.on_finish)
             self.sh.apply_settings()
         else: self.close()
 

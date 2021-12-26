@@ -1,3 +1,4 @@
+from os import error
 from sqlalchemy.exc import OperationalError
 from config.profile import ProfileManager
 from database.remote import RemoteDb
@@ -228,6 +229,7 @@ class SettingsHandler(object):
 
     def apply_settings(self):
         # start loader
+        self.ui.loader.start()
         self.write_thread ,self.write_worker = self.new_worker(lambda worker: worker.apply_write_config, self.apply_read_config)
 
     def apply_read_config(self, state):
@@ -236,8 +238,9 @@ class SettingsHandler(object):
         print(status)
         if status == 'success':
             # validate password
+            # TODO rewrite
             if not db.validate_password(None):
-                # cancel loader
+                self.ui.loader.finish()
                 # return cancelled error
                 if type(db) is TempDb:
                     db.delete()
@@ -245,19 +248,18 @@ class SettingsHandler(object):
             self.db = db
             self.read_thread ,self.read_worker = self.new_worker(lambda worker: worker.apply_read_config, self.finish_apply, db)
         else:
-            # cancel loader
-            pass
+            self.ui.loader.finish()
+            self.ui.show_message("Operation failed:\n{}".format(status), long=False, error = True)
 
     def finish_apply(self, state):
         db, status = state
         print('read_config')
         print(status)
-        # cancel loader        
+        self.ui.loader.finish()        
         if status == 'success':
             profile = ProfileManager()
             profile.getCurrentProfile()
             self.ph.update_settings(profile.profile.id, self.new)
             self.on_finish()
         else:
-            # show error
-            pass
+            self.ui.show_message("Operation failed:\n{}".format(status), long=False, error = True)
