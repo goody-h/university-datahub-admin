@@ -2,6 +2,7 @@ from config.profile import ProfileManager
 from models.department import Department
 from PyQt5 import QtWidgets
 from services.crypto import CryptoManager
+from ui.loading_dialog import LoaderHandler
 
 
 class UI_Config(object):
@@ -12,6 +13,7 @@ class UI_Config(object):
         self.dpts = []
         self.loading_profile = False
         self.dpt_profile = None
+        self.loader = LoaderHandler(self.ui.window)
 
     def load_profiles(self):
         session = self.profile.pdb.Session()
@@ -65,40 +67,45 @@ class UI_Config(object):
         if profile != None:
             self.dpt_profile = profile
 
-    def validate_password(self, crypto: CryptoManager, mode, is_remote_write):
-        status = crypto.load_keys()
-        if status == "none":
-            passwd = None
-            while True:
-                title = "Current Password?" if passwd == None else "Current Password? (Incorrect, Try Again!)"
+    def validate_password(self, crypto: CryptoManager, mode, is_remote_write, on_status = lambda s: None):
+        def on_load(status, passwd = None):
+            self.loader.finish()
+            if status == "none" or status == "wrong":
+                title = "Password?" if passwd == None else "Password? (Incorrect, Try Again!)"
                 text, ok = QtWidgets.QInputDialog.getText(self.ui.centralWidget, "Attention", title, QtWidgets.QLineEdit.Password)
-                if not ok:
-                    break
-                passwd = text
-                status = crypto.load_keys(passwd)
-                if status == 'correct':
-                    break
+                if ok:
+                    self.loader.start()
+                    passwd = text
+                    self.thread, self.worker = crypto.new_crypto_worker(lambda worker: worker.load_crypto, lambda status: on_load(status, passwd), passwd)
+                    return
 
-        if status == 'default' and (mode == "local" or mode == "write"):
-            self.password_update(is_remote_write, crypto)
-        return status
+            if status == 'default' and (mode == "local" or mode == "write"):
+                self.password_update(is_remote_write, crypto, lambda: on_status(status))
+            else:
+                on_status(status)
+        self.loader.start()
+        self.thread, self.worker = crypto.new_crypto_worker(lambda worker: worker.load_crypto, on_load)
 
-    def password_update(self, is_remote_write, crypto):
+    def password_update(self, is_remote_write, crypto: CryptoManager, on_finish = lambda: None):
         if not crypto.is_loaded():
-            return
+            return on_finish()
         new, ok = QtWidgets.QInputDialog.getText(self.ui.centralWidget, "Attention", "New Password?", QtWidgets.QLineEdit.Password)
         if not ok:
             # self.ui.show_message('Cancelled', False)
-            return
+            return on_finish()
         passwd = None
         while True:
             title = "Confirm New Password" if passwd == None else "Confirm New Password (Incorrect, Try Again!)"
             confirm, ok = QtWidgets.QInputDialog.getText(self.ui.centralWidget, "Attention", title, QtWidgets.QLineEdit.Password)
             passwd = confirm
             if not ok:
-                self.ui.show_message('Cancelled', False)
-                return
+                self.ui.show_message('Cancelled', False) 
+                return on_finish()
             if passwd == new:
-                crypto.set_password(passwd, is_remote_write)
+                self.loader.start()
+                def finish(_):
+                    self.loader.finish()
+                    on_finish()
+                self.thread, self.worker = crypto.new_crypto_worker(lambda worker: worker.set_password, finish, passwd, is_remote_write)
                 # self.ui.show_message('Password change success!', False)
                 break

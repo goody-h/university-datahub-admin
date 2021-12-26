@@ -13,6 +13,7 @@ from models.config import Config
 from services.stager import Stager
 from services.time import Time
 
+from PyQt5.QtCore import QObject, pyqtSignal, QThread
 
 class CryptoManager(object):
     def __init__(self, Session):
@@ -211,4 +212,36 @@ class CryptoManager(object):
         except: return False
         return True
 
+    def new_crypto_worker(self, exec, loaded, passwd = None, isWrite = False):
+        thread = QThread()
+        worker = CryptoWorker(self, passwd, isWrite)
+        worker.moveToThread(thread)
+        thread.started.connect(exec(worker))
+        worker.finished.connect(thread.quit)
+        worker.finished.connect(worker.deleteLater)
+        worker.loaded.connect(loaded)
+        thread.finished.connect(thread.deleteLater)
+        thread.start()
+        return thread, worker
 
+
+
+class CryptoWorker(QObject):
+    def __init__(self, crypto: CryptoManager, passwd = None, isWrite = False) -> None:
+        super().__init__()
+        self.crypto = crypto
+        self.passwd = passwd
+        self.isWrite = isWrite
+
+    finished = pyqtSignal()
+    loaded = pyqtSignal(str)
+
+    def load_crypto(self):
+        status = self.crypto.load_keys(self.passwd)
+        self.loaded.emit(status)
+        self.finished.emit()
+
+    def set_password(self):
+        self.crypto.set_password(self.passwd, self.isWrite)
+        self.loaded.emit(None)
+        self.finished.emit()

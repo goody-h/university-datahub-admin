@@ -47,19 +47,21 @@ class ProfileHandler(object):
 
     def decrypt_write_config(self, loaded_crypto = None):
         if self.settings.write_config != None and self.settings.is_write_encrypted():
+            def on_status(status):
+                if status == 'correct' or status == 'default':
+                    config = self.settings.write_config.removeprefix('[REDACTED]')
+                    config = crypto.decrypt_with_key(config)
+                    self.settings.write_config = config
+                    self.update_settings(self.profile.profile.id, self.settings)
+                    self.initialize()
             if loaded_crypto == None or not loaded_crypto.is_loaded():
                 crypto = CryptoManager(self.profile.pdb.Session)
-                status = self.ui_config.validate_password(crypto, "no-reset", self.settings.is_remote_write())
+                self.ui_config.validate_password(crypto, "no-reset", self.settings.is_remote_write(), on_status)
             else:
                 crypto = loaded_crypto
-                status = 'correct'
-            if status == 'correct' or status == 'default':
-                config = self.settings.write_config.removeprefix('[REDACTED]')
-                config = crypto.decrypt_with_key(config)
-                self.settings.write_config = config
-                self.update_settings(self.profile.profile.id, self.settings)
-                self.initialize()
-
+                on_status('correct')
+            
+            
     def change_profile(self, index):
         if not self.ui_config.loading_profile:
             self.profile.setCurrentProfile(self.profile.profiles[index])
@@ -72,12 +74,13 @@ class ProfileHandler(object):
 
     def update_profile_settings(self):
         crypto = CryptoManager(self.profile.pdb.Session)
-        status = self.ui_config.validate_password(crypto, self.settings.get_profile_mode(), self.settings.is_remote_write())
-        if status == 'correct' or status == 'default':
-            self.decrypt_write_config(crypto)
-            dialog = ProfileDialog(self.ui.window, self, 'update', self.profile.pdb, self.settings, crypto)
-            dialog.show()
-            print('show dialog')
+        def on_status(status):
+            if status == 'correct' or status == 'default':
+                self.decrypt_write_config(crypto)
+                dialog = ProfileDialog(self.ui.window, self, 'update', self.profile.pdb, self.settings, crypto)
+                dialog.show()
+                print('show dialog')
+        self.ui_config.validate_password(crypto, self.settings.get_profile_mode(), self.settings.is_remote_write(), on_status)
 
     def create_new_profile(self):
         dialog = ProfileDialog(self.ui.window, self, 'new', None, Settings())

@@ -453,25 +453,17 @@ class Ui_centralWidget(object):
             if self.files == None or len(self.files) == 0:
                 self.show_message('No file selected, please select a file', False)
                 return
-            crypto = CryptoManager(self.profile_handler.profile.pdb.Session)
-            status = crypto.load_keys()
-            if status == "none":
-                passwd = None
-                while True:
-                    title = "Password?" if passwd == None else "Password? (Incorrect, Try Again!)"
-                    text, ok = QtWidgets.QInputDialog.getText(self.centralWidget, "Attention", title, QtWidgets.QLineEdit.Password)
-                    if not ok:
-                        break
-                    passwd = text
-                    status = crypto.load_keys(passwd)
-                    if status == 'correct':
-                        break
-            if status == 'correct' or status == 'default':
-                self.worker = Worker(self, crypto)
-                self.profile_handler.decrypt_write_config(crypto)
-                self.thread = self.create_thread(worker = self.worker, exec = self.worker.upload_handler)
-                self.thread.start()
+            
+            def on_status(status):
+                if status == 'correct' or status == 'default':
+                    self.worker = Worker(self, crypto)
+                    self.profile_handler.decrypt_write_config(crypto)
+                    self.thread = self.create_thread(worker = self.worker, exec = self.worker.upload_handler)
+                    self.thread.start()
 
+            crypto = CryptoManager(self.profile_handler.profile.pdb.Session)
+            self.profile_handler.ui_config.validate_password(crypto, 'no-reset', False, on_status)
+            
     def uploadlist_handler(self):
         self.mat_files = self.get_text_file()
         self.worker = Worker(self)
