@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer
+from sqlalchemy import Column, String, Integer, BigInteger
 from database.model import ProfileBase
 
 class Course(ProfileBase):
@@ -14,7 +14,7 @@ class Course(ProfileBase):
     sem = Column(Integer)
     department = Column(String(40))
     status = Column(String(10))
-    _timestamp_ = Column('timestamp', Integer)
+    _timestamp_ = Column('timestamp', BigInteger)
     _signature_ = Column(String(260))
 
     

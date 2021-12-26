@@ -43,6 +43,9 @@ class Storage(object):
     def get_tmp_db_dir(self):
         return self.get_write_dir('db/tmp')
 
+    def get_backup_dir(self, group = ""):
+        return self.get_write_dir('db/backup/' + group)
+
     def get_outpur_dir(self):
         return self.get_write_dir('output')
 

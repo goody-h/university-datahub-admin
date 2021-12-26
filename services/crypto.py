@@ -54,7 +54,7 @@ class CryptoManager(object):
             value = pu_pem,
             annotation = "key",
             status = "UP",
-            _timestamp_ = Time().get_time_in_sec(),
+            _timestamp_ = Time().get_time_in_micro(),
             _signature_ =  ""
         )
         if e_pr_pem != None:
@@ -63,7 +63,7 @@ class CryptoManager(object):
                 value = e_pr_pem,
                 annotation = "key",
                 status = "UP",
-                _timestamp_ = Time().get_time_in_sec(),
+                _timestamp_ = Time().get_time_in_micro(),
                 _signature_ =  ""
             )
         if pu_pem != None:
@@ -139,6 +139,7 @@ class CryptoManager(object):
         return decrypted
 
     def encrypt_with_key(self, source: str) -> str:
+        self.get_public_key()
         if not self.is_pub_loaded():
             return
         cipher = PKCS1_OAEP.new(key=self.public_key)

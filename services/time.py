@@ -5,9 +5,17 @@ class Time(object):
     def __init__(self) -> None:
         super().__init__()
         self.time = 0
+        self.time_skip = 0
 
-    def get_time_in_sec(self, fast=True):
-        return math.floor(time.time())
+    def get_next_time_in_micro(self, fast=True):
+        c_time = math.floor(time.time() * 1000000)
+        if c_time <= self.time_skip:
+            c_time = self.time_skip + 1
+        self.time_skip = c_time
+        return c_time
+
+    def get_time_in_micro(self, fast=True):
+        return math.floor(time.time() * 1000000)
 
     def start_measure(self, tag="Main"):
         self.time = time.time()

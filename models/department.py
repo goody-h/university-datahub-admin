@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer
+from sqlalchemy import Column, String, Integer, BigInteger
 from database.model import ProfileBase
 
 
@@ -17,5 +17,5 @@ class Department(ProfileBase):
     spreadsheet = Column(String(50))
     max_cu = Column(Integer)
     status = Column(String(10))
-    _timestamp_ = Column('timestamp', Integer)
+    _timestamp_ = Column('timestamp', BigInteger)
     _signature_ = Column(String(260))

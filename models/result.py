@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer
+from sqlalchemy import Column, String, Integer, BigInteger
 from database.model import ProfileBase
 
 class Result(ProfileBase):
@@ -13,6 +13,6 @@ class Result(ProfileBase):
     annotation = Column(String(700))
     score = Column(Integer)
     status = Column(String(10))
-    _timestamp_ = Column('timestamp', Integer)
+    _timestamp_ = Column('timestamp', BigInteger)
     _signature_ = Column(String(260))
 

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer
+from sqlalchemy import Column, String, BigInteger
 from database.model import Base
 
 class Config(Base):
@@ -9,5 +9,5 @@ class Config(Base):
     value = Column(String(2000))
     annotation = Column(String(100))
     status = Column(String(10))
-    _timestamp_ = Column('timestamp', Integer)
+    _timestamp_ = Column('timestamp', BigInteger)
     _signature_ =  Column(String(260))

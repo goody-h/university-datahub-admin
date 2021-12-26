@@ -1,9 +1,12 @@
+import tkinter
+from tkinter import filedialog
 from config.profile import ProfileManager
 from config.ui_config import UI_Config
-from database.temp import TempDb
+from database.data import DataDb
 from services.crypto import CryptoManager
 from services.settings import Settings
 from services.syncronizer import Syncronizer
+from ui.profile_dialog import ProfileDialog
 
 class ProfileHandler(object):
     
@@ -71,28 +74,34 @@ class ProfileHandler(object):
         crypto = CryptoManager(self.profile.pdb.Session)
         status = self.ui_config.validate_password(crypto, self.settings.get_profile_mode(), self.settings.is_remote_write())
         if status == 'correct' or status == 'default':
-            ## show settings dialog
-            pass
+            self.decrypt_write_config(crypto)
+            dialog = ProfileDialog(self.ui.window, self, 'update', self.profile.pdb, self.settings, crypto)
+            dialog.show()
+            print('show dialog')
 
     def create_new_profile(self):
-        # new profile operation
-        name = self.ui_config.set_profile_info()
-        if name == None: return
-        settings = Settings()
-        newSettings = settings.clone()
-        newSettings.name = name
+        dialog = ProfileDialog(self.ui.window, self, 'new', None, Settings())
+        dialog.show()
+        print('show dialog')
 
-        db = TempDb()
-        db.load()
-        db = settings.save1(newSettings, db)
-        if db != None:
-            # validate password
-            if not db.validate_password(None):
-                # return cancelled
-                return
-            db = settings.save2(newSettings, db)
-            if db != None:
-                profile = ProfileManager()
-                profile.getCurrentProfile()
-                self.update_settings(profile.profile.id, newSettings)
-        self.initialize()
+    def import_profile(self):
+        file = self.get_file()
+        if file != None and len(file) > 0:
+            try:
+                db = DataDb(file)
+                crypto = CryptoManager(db.Session)
+                settings = db.get_settings()
+                if settings != None and crypto.get_encrypted_key() != None and crypto.get_public_key() != None:
+                    settings = Settings(data = settings)
+                    dialog = ProfileDialog(self.ui.window, self, 'new', db, settings)
+                    dialog.show()
+                    print('show dialog')
+                else:
+                    pass
+            except:
+                pass
+
+    def get_file(self):
+        root = tkinter.Tk()
+        root.withdraw()
+        return( filedialog.askopenfilename(filetypes= [('Database File', '.db .edb')]) )

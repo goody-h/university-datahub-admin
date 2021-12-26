@@ -13,12 +13,6 @@ class UI_Config(object):
         self.loading_profile = False
         self.dpt_profile = None
 
-    def set_profile_info(self):
-        text, ok = QtWidgets.QInputDialog.getText(self.ui.centralWidget, "Attention", "Profile Name?")
-        if ok and text != '' and text != None:
-            return text
-        return None
-
     def load_profiles(self):
         session = self.profile.pdb.Session()
         index = 0
@@ -86,21 +80,25 @@ class UI_Config(object):
                     break
 
         if status == 'default' and (mode == "local" or mode == "write"):
-            new, ok = QtWidgets.QInputDialog.getText(self.ui.centralWidget, "Attention", "New Password?", QtWidgets.QLineEdit.Password)
+            self.password_update(is_remote_write, crypto)
+        return status
+
+    def password_update(self, is_remote_write, crypto):
+        if not crypto.is_loaded():
+            return
+        new, ok = QtWidgets.QInputDialog.getText(self.ui.centralWidget, "Attention", "New Password?", QtWidgets.QLineEdit.Password)
+        if not ok:
+            # self.ui.show_message('Cancelled', False)
+            return
+        passwd = None
+        while True:
+            title = "Confirm New Password" if passwd == None else "Confirm New Password (Incorrect, Try Again!)"
+            confirm, ok = QtWidgets.QInputDialog.getText(self.ui.centralWidget, "Attention", title, QtWidgets.QLineEdit.Password)
+            passwd = confirm
             if not ok:
                 self.ui.show_message('Cancelled', False)
                 return
-            passwd = None
-            while True:
-                title = "Confirm New Password" if passwd == None else "Confirm New Password (Incorrect, Try Again!)"
-                confirm, ok = QtWidgets.QInputDialog.getText(self.ui.centralWidget, "Attention", title, QtWidgets.QLineEdit.Password)
-                passwd = confirm
-                if not ok:
-                    self.ui.show_message('Cancelled', False)
-                    return
-                if passwd == new:
-                    crypto.set_password(passwd, is_remote_write)
-                    self.ui.show_message('Password change success!', False)
-                    break
-        return status
-
+            if passwd == new:
+                crypto.set_password(passwd, is_remote_write)
+                # self.ui.show_message('Password change success!', False)
+                break

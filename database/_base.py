@@ -20,27 +20,6 @@ class Db_Base(object):
         self.store = Storage()
         self.files  = Files()
 
-    def copy_to_profile(self, profile, previous = None):
-        if self.db_file != None:
-            db_file = self.store.get_db_dir() + 'profile_{}.db'.format(profile)
-            db_file1 = self.store.get_db_dir() + 'profile_{}.tmp.db'.format(profile)
-            db_file2 = self.store.get_db_dir() + '_profile_{}.db'.format(profile)
-            if os.path.exists(db_file1):
-                os.remove(db_file1)
-            if os.path.exists(db_file2):
-                os.remove(db_file2)
-            
-            os.rename(self.db_file, db_file1)
-            if os.path.exists(db_file):
-                os.rename(db_file, db_file2)
-            os.rename(db_file1, db_file)
-            os.remove(db_file2)
-            if previous != None and previous != profile:
-                previous = self.store.get_db_dir() + 'profile_{}.db'.format(previous)
-                if os.path.exists(previous):
-                    os.remove(previous)
-            # do some backup
-
     def create_schema(self):
         ProfileBase.metadata.create_all(self.engine)
         Base.metadata.create_all(self.engine)
@@ -94,6 +73,7 @@ class Db_Base(object):
         session = self.Session()
         session.query(Config).filter(Config.annotation == "update-stamp").delete()
         session.query(Upload).delete()
+        session.commit()
         session.close()
 
     def save_settings(self, settings):
@@ -103,7 +83,7 @@ class Db_Base(object):
             value = crypto.serialize_object(settings),
             annotation = "",
             status = "UP",
-            _timestamp_ = Time().get_time_in_sec(),
+            _timestamp_ = Time().get_time_in_micro(),
             _signature_ =  ""
         )
         session = self.Session()

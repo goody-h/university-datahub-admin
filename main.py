@@ -1,4 +1,4 @@
-import re, sys, os, math
+import re, sys, math
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import QSize, Qt
 from PyQt5.QtWidgets import QMessageBox
@@ -40,6 +40,7 @@ class HLayout(object):
 class Ui_centralWidget(object):
     def setupUi(self, window):
         window.setObjectName("window")
+        self.window = window
         centralWidget = QtWidgets.QWidget(window)
         self.centralWidget = centralWidget
         window.setCentralWidget(centralWidget)
@@ -98,22 +99,24 @@ class Ui_centralWidget(object):
 "  border-radius: 15px;\n"
 "  border-color: black;\n"
 "}")
-        # self.menubar = QtWidgets.QMenuBar(window)
-        # self.menubar.setGeometry(QtCore.QRect(0, 0, 584, 21))
-        # self.menubar.setObjectName("menubar")
-        # self.menuPreferences = QtWidgets.QMenu(self.menubar)
-        # self.menuPreferences.setObjectName("menuPreferences")
-        # window.setMenuBar(self.menubar)
 
-        # self.setPreferencesAction = QtWidgets.QAction(window)
-        # self.setPreferencesAction.setObjectName("setPreferencesAction")
-        # self.menuPreferences.addAction(self.setPreferencesAction)
+#123
+        self.menubar = QtWidgets.QMenuBar(window)
+        self.menubar.setGeometry(QtCore.QRect(0, 0, 584, 21))
+        self.menubar.setObjectName("menubar")
+        self.menuPreferences = QtWidgets.QMenu(self.menubar)
+        self.menuPreferences.setObjectName("menuPreferences")
+        window.setMenuBar(self.menubar)
 
-        # self.setPreferencesAction2 = QtWidgets.QAction(window)
-        # self.setPreferencesAction2.setObjectName("setPreferencesAction2")
-        # self.menuPreferences.addAction(self.setPreferencesAction2)
+        self.setPreferencesAction = QtWidgets.QAction(window)
+        self.setPreferencesAction.setObjectName("setPreferencesAction")
+        self.menuPreferences.addAction(self.setPreferencesAction)
 
-        # self.menubar.addAction(self.menuPreferences.menuAction())
+        self.setPreferencesAction2 = QtWidgets.QAction(window)
+        self.setPreferencesAction2.setObjectName("setPreferencesAction2")
+        self.menuPreferences.addAction(self.setPreferencesAction2)
+
+        self.menubar.addAction(self.menuPreferences.menuAction())
 
         self.horizontalLayout = QtWidgets.QHBoxLayout(centralWidget)
         self.horizontalLayout.setContentsMargins(0, 0, 0, 0)
@@ -158,7 +161,7 @@ class Ui_centralWidget(object):
 
         self.password = QtWidgets.QPushButton(self.headerFrame)
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap("static/icon/lock.svg"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon.addPixmap(QtGui.QPixmap("static/icon/settings.svg"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
 
         self.password.setIcon(icon)
         self.password.setObjectName("password")
@@ -355,7 +358,7 @@ class Ui_centralWidget(object):
         self.horizontalLayout.addWidget(self.mainbody)
 
         self.retranslateUi(window)
-        QtCore.QMetaObject.connectSlotsByName(window)
+        # QtCore.QMetaObject.connectSlotsByName(window)
 
         centralWidget.setFixedSize(centralWidget.sizeHint())
         window.setFixedSize(window.sizeHint())
@@ -400,9 +403,10 @@ class Ui_centralWidget(object):
 
         self.newprofile.setText(_translate("centralWidget", " New profile"))
 
-        # self.menuPreferences.setTitle(_translate("window", "Profiles"))
-        # self.setPreferencesAction.setText(_translate("window", "New"))
-        # self.setPreferencesAction2.setText(_translate("window", "Import"))
+#123
+        self.menuPreferences.setTitle(_translate("window", "Profiles"))
+        self.setPreferencesAction.setText(_translate("window", "New"))
+        self.setPreferencesAction2.setText(_translate("window", "Import"))
 
     def attach_event_handlers(self):
         self.selectFileButton.clicked.connect(self.select_handler)
@@ -412,6 +416,8 @@ class Ui_centralWidget(object):
         self.password.clicked.connect(self.profile_handler.update_profile_settings)
         self.profileSel.currentIndexChanged.connect(self.profile_handler.change_profile)
         self.newprofile.clicked.connect(self.profile_handler.create_new_profile)
+        self.setPreferencesAction.triggered.connect(self.profile_handler.create_new_profile)
+        self.setPreferencesAction2.triggered.connect(self.profile_handler.import_profile)
 
     def configure_profile(self):
         self.profile_handler = ProfileHandler(self)
@@ -577,6 +583,7 @@ class Worker(QObject):
         self.app = app
         self.Session = app.profile_handler.getSession()
         self.cryptoMan = cryptoMan
+        self.timer = Time()
 
     finished = pyqtSignal()
     show_message = pyqtSignal(str, bool)
@@ -588,7 +595,7 @@ class Worker(QObject):
     load_departments = pyqtSignal()
     
     def get_time_suffix(self):
-        return str(Time().get_time_in_sec() % 10000000)
+        return str(self.timer.get_time_in_micro() % 10000000)
 
     def spreadsheet_handler(self):
         mats = self.app.matNumberLineEdit.text().upper().rstrip(',')
@@ -787,7 +794,7 @@ class Worker(QObject):
                 for data in results:
                     _isdelete = (data.get('delete') != None and str(data.get('delete')).lower() == 'true') or isDelete
                     record = object(data, _isdelete)
-                    record._timestamp_ = Time().get_time_in_sec()
+                    record._timestamp_ = self.timer.get_next_time_in_micro()
                     if self.cryptoMan != None:
                         record._signature_ = self.cryptoMan.sign(record)
                     if _isdelete:
@@ -863,7 +870,7 @@ class Worker(QObject):
                     obj, strg = stager.serialize_object(c)
                     obj['type'] = 'course'
                     obj = self.department_object(obj, True)
-                    obj._timestamp_ = Time().get_time_in_sec()
+                    obj._timestamp_ = self.timer.get_next_time_in_micro()
                     if self.cryptoMan != None:
                         obj._signature_ = self.cryptoMan.sign(obj)
                     stager.stage_record(obj, 'courseId', self.cryptoMan)
@@ -881,7 +888,7 @@ class Worker(QObject):
                     obj, strg = stager.serialize_object(c)
                     obj['type'] = 'course'
                     obj = self.department_object(obj, True)
-                    obj._timestamp_ = Time().get_time_in_sec()
+                    obj._timestamp_ = self.timer.get_next_time_in_micro()
                     if self.cryptoMan != None:
                         obj._signature_ = self.cryptoMan.sign(obj)
                     stager.stage_record(obj, 'courseId', self.cryptoMan)
@@ -981,11 +988,11 @@ class MainWindow(QtWidgets.QMainWindow):
 
     @QtCore.pyqtSlot(bool)
     def on_setPreferencesAction_triggered(self, triggered):
-        print(triggered)
+        pass
 
     @QtCore.pyqtSlot(bool)
     def on_setPreferencesAction2_triggered(self, triggered):
-        print(triggered)
+        pass
 
         
 if __name__ == "__main__":

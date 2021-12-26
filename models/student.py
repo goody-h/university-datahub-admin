@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer
+from sqlalchemy import Column, String, BigInteger
 from database.model import ProfileBase
 
 class Student(ProfileBase):
@@ -15,7 +15,7 @@ class Student(ProfileBase):
     batchId = Column(String(50))
     annotation = Column(String(700))
     status = Column(String(10))
-    _timestamp_ = Column('timestamp', Integer)
+    _timestamp_ = Column('timestamp', BigInteger)
     _signature_ = Column(String(260))
 
 

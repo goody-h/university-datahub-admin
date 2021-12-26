@@ -13,6 +13,7 @@ class Stager(object):
         self.session = session
         self.is_writer = is_writer
         self.staged_records = None
+        self.timer = Time()
 
     def stage_config(self, crypto = None):
         if self.is_writer:
@@ -51,7 +52,7 @@ class Stager(object):
                 key = obj[primary],
                 table = str(type(record)),
                 value = string,
-                _timestamp_ = Time().get_time_in_sec()
+                _timestamp_ = self.timer.get_next_time_in_micro()
             )
             if crypto != None:
                 upload._signature_ = crypto.sign(upload)
@@ -86,77 +87,104 @@ class Stager(object):
             value = str(value),
             annotation = "update-stamp",
             status = "UP",
-            _timestamp_ = Time().get_time_in_sec(),
+            _timestamp_ = self.timer.get_next_time_in_micro(),
             _signature_ =  ""
         )
         self.session.merge(config)
 
     def has_staged_records(self):
-        self.staged_records = self.session.query(Upload).all()
+        self.staged_records = self.session.query(Upload).order_by(Upload._timestamp_).limit(1).all()
+        print(len(self.staged_records))
         return len(self.staged_records) > 0
 
     def push_to_remote(self, remote, crypto = None, pub_key = None):
-
         if self.is_writer:
-            if self.staged_records == None:
-                self.has_staged_records()
+            self.staged_records = self.session.query(Upload).order_by(Upload._timestamp_).limit(100).all()
             remote_session = remote.Session()
-            ts = self.get_update_stamp()
-            ps = 0
-            for record in self.staged_records:
-                stamp = None
-                table = str(record.table)
-                data = json.JSONDecoder().decode(record.value)
-                current, object = self.map_data_to_object(data, table)
-                if object != None:
-                    current = current.first()
-                if object != None and ((current == None and data['status'] == 'DELETE')
-                    or (current != None and int(current._timestamp_) == data['_timestamp_'] 
-                        and str(current._signature_) == data['_signature_'])):
-                    object.status = data.get('status')
-                    time = Time().get_time_in_sec()
-                    object._timestamp_ = time
-                    object._signature_ = data.get('_signature_')
-                    stamp = time
-                if object != None:
-                    if type(object) is Config:
-                        if crypto.verify_signature(record, str(record._signature_)) or pub_key == None:
-                            remote_session.merge(object)
-                            ts = max(ts, stamp)
-                    elif crypto.verify_signature(record, str(record._signature_)) or crypto.verify_signature(object, str(object._signature_)):
-                        remote_session.merge(object)
-                        ts = max(ts, stamp)
-                ps = max(ps, int(record._timestamp_))
-            remote_session.commit()
-            remote_session.close()
-            self.set_update_stamp(ts)
-            self.session.query(Upload).filter(Upload._timestamp_ <= ps).delete()
-            self.session.commit()
-            self.staged_records = None
+            remote.session = remote_session
+            try:
+                while len(self.staged_records) > 0:
+                    if not remote.has_lock():
+                        print('no lock')
+                        break
+                    ts = self.get_update_stamp()
+                    ps = 0
+                    for record in self.staged_records:
+                        stamp = None
+                        table = str(record.table)
+                        data = json.JSONDecoder().decode(record.value)
+                        current, object = self.map_data_to_object(data, table)
+                        if object != None:
+                            current = current.first()
+                        if object != None and ((current == None and data['status'] == 'DELETE')
+                            or (current != None and int(current._timestamp_) == data['_timestamp_'] 
+                                and str(current._signature_) == data['_signature_'])):
+                            object.status = data.get('status')
+                            time = self.timer.get_next_time_in_micro()
+                            object._timestamp_ = time
+                            object._signature_ = data.get('_signature_')
+                            stamp = time
+                            if type(object) is Config:
+                                if crypto.verify_signature(record, str(record._signature_)) or pub_key == None:
+                                    remote_session.merge(object)
+                                    ts = max(ts, stamp)
+                            elif crypto.verify_signature(record, str(record._signature_)) or crypto.verify_signature(object, str(object._signature_)):
+                                remote_session.merge(object)
+                                ts = max(ts, stamp)
+                        ps = max(ps, int(record._timestamp_))
+                    if not remote.has_lock():
+                        print('no lock')
+                        break
+                    remote_session.commit()
+                    self.set_update_stamp(ts)
+                    self.session.query(Upload).filter(Upload._timestamp_ <= ps).delete()
+                    self.session.commit()
+                    print('pushed {}'.format(len(self.staged_records)))
+                    self.staged_records = self.session.query(Upload).order_by(Upload._timestamp_).limit(100).all()
+                remote_session.close()
+            except Exception as e:
+                remote_session.close()
+                raise e
+
+    
+    def assert_remote(self, remote, session):
+         if remote.is_cancelled:
+            session.close()
+            assert False, "Remote session has ended" 
 
     def pull_from_remote(self, remote, crypto = None):
         session = remote.Session()
-        stamp = self.get_update_stamp()
-        records = session.query(Config).filter(Config.annotation == "key", Config._timestamp_ > stamp).all()
-        records.extend(session.query(Result).filter(Result._timestamp_ > stamp).all())
-        records.extend(session.query(Department).filter(Department._timestamp_ > stamp).all())
-        records.extend(session.query(Course).filter(Course._timestamp_ > stamp).all())
-        records.extend(session.query(Student).filter(Student._timestamp_ > stamp).all())
-        for update in records:
-            obj, _ = self.serialize_object(update)
-            current, object = self.map_data_to_object(obj, str(type(update)))
-            c_data = current.first()
-            if c_data == None or int(update._timestamp_) > int(c_data._timestamp_) or str(update._signature_) == str(c_data._signature_) or type(update) is Config:
-                if str(update.status) == "DELETE":
-                    current.delete()
-                else:
-                    object._timestamp_ = Time().get_time_in_sec()
-                    object._signature_ = obj.get('_signature_')
-                    self.session.merge(object)
-            stamp = max(stamp, int(update._timestamp_))
-        self.set_update_stamp(stamp)
-        session.close()
-        self.session.commit()
+        remote.session = session
+        try:
+            self.assert_remote(remote, session)
+            stamp = self.get_update_stamp()
+            records = session.query(Config).filter(Config.annotation == "key", Config._timestamp_ > stamp).all()
+            records.extend(session.query(Result).filter(Result._timestamp_ > stamp).all())
+            records.extend(session.query(Department).filter(Department._timestamp_ > stamp).all())
+            records.extend(session.query(Course).filter(Course._timestamp_ > stamp).all())
+            records.extend(session.query(Student).filter(Student._timestamp_ > stamp).all())
+            for update in records:
+                self.assert_remote(remote, session)
+                obj, _ = self.serialize_object(update)
+                current, object = self.map_data_to_object(obj, str(type(update)))
+                c_data = current.first()
+                if c_data == None or int(update._timestamp_) > int(c_data._timestamp_) or str(update._signature_) == str(c_data._signature_) or type(update) is Config:
+                    if str(update.status) == "DELETE":
+                        current.delete()
+                    else:
+                        object._timestamp_ = self.timer.get_next_time_in_micro()
+                        object._signature_ = obj.get('_signature_')
+                        self.session.merge(object)
+                stamp = max(stamp, int(update._timestamp_))
+            
+            self.assert_remote(remote, session)
+            self.set_update_stamp(stamp)
+            session.close()
+            self.session.commit()
+        except Exception as e:
+            session.close()
+            raise e
+
 
     def map_data_to_object(self, data, table):
         object = None

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer
+from sqlalchemy import Column, String, BigInteger
 from database.model import ProfileBase
 
 class Upload(ProfileBase):
@@ -8,5 +8,5 @@ class Upload(ProfileBase):
     table = Column(String(50))
     value = Column(String(2500))
     annotation = Column(String(50))
-    _timestamp_ = Column('timestamp', Integer)
+    _timestamp_ = Column('timestamp', BigInteger)
     _signature_ =  Column(String(260))

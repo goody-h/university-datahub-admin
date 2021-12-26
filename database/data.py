@@ -11,5 +11,5 @@ class DataDb(Base):
     def load(self):
         if self.engine != None:
             self.engine.dispose()
-        self.engine = create_engine('sqlite:///{}'.format(self.db_file))
+        self.engine = create_engine('sqlite:///{}'.format(self.db_file), connect_args={'timeout': 15})
         self.Session = sessionmaker(bind=self.engine)
