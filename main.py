@@ -423,6 +423,8 @@ class Ui_centralWidget(object):
         centralWidget.setFixedSize(centralWidget.sizeHint())
         window.setFixedSize(window.sizeHint())
 
+        self.initialize_profile()
+
     def retranslateUi(self, window):
         _translate = QtCore.QCoreApplication.translate
         window.setWindowTitle(_translate("window", "DataHub"))
@@ -476,6 +478,8 @@ class Ui_centralWidget(object):
 
     def configure_profile(self):
         self.profile_handler = ProfileHandler(self)
+
+    def initialize_profile(self):
         self.profile_handler.initialize()
 
     def create_thread(self, worker, exec):

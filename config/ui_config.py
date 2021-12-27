@@ -20,7 +20,11 @@ class UI_Config(object):
         self.dpt_profile = None
         self.loader = LoaderHandler(self.ui.window)
 
-    def load_profiles(self):
+    def load_profiles(self, settings):
+        if settings.read_only:
+            self.ui.mastersheet.hide()
+        else: self.ui.mastersheet.show()
+        
         session = self.profile.pdb.Session()
         index = 0
         self.loading_profile = True

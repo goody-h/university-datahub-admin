@@ -30,7 +30,7 @@ class ProfileHandler(object):
 
         if self.ui_config == None:
             self.ui_config = UI_Config(self.ui, self.profile)
-        self.ui_config.load_profiles()
+        self.ui_config.load_profiles(self.settings)
         self.initialize_syncronizer()
 
     def getSession(self):
