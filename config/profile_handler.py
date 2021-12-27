@@ -1,6 +1,7 @@
 import tkinter
 from tkinter import filedialog
 from config.profile import ProfileManager
+from config.status import StatusBarManager
 from config.ui_config import UI_Config
 from database.data import DataDb
 from services.crypto import CryptoManager
@@ -17,12 +18,15 @@ class ProfileHandler(object):
         self.ui_config = None
         self.syncronizer = None
         self.settings_cache = {}
+        self.statusMan = StatusBarManager(self, self.ui.statusBar.hlayout)
 
     def initialize(self):
         if self.profile == None:
             self.profile = ProfileManager()
         self.profile.getCurrentProfile()
         self.get_profile_settings()
+
+        self.statusMan.initialise(self.settings)
 
         if self.ui_config == None:
             self.ui_config = UI_Config(self.ui, self.profile)
@@ -69,7 +73,7 @@ class ProfileHandler(object):
         
     def initialize_syncronizer(self):
         if self.syncronizer == None:
-            self.syncronizer = Syncronizer(self.ui_config)
+            self.syncronizer = Syncronizer(self.ui_config, self.statusMan)
         self.syncronizer.load_profile(self.profile.pdb, self.settings)
 
     def update_profile_settings(self):

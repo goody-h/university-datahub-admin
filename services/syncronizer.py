@@ -1,4 +1,6 @@
+from sqlalchemy import exc
 from sqlalchemy.exc import OperationalError
+from config.status import StatusBarManager
 from config.ui_config import UI_Config
 from database.profile import ProfileDb
 from database.remote import RemoteDb
@@ -12,8 +14,9 @@ from PyQt5.QtCore import QObject, QThread, pyqtSignal, QTimer
 import threading
 
 class Syncronizer(object):
-    def __init__(self, ui_config: UI_Config) -> None:
+    def __init__(self, ui_config: UI_Config, status: StatusBarManager) -> None:
         super().__init__()
+        self.status = status
         self.remote = None
         self.settings = None
         self.pdb = None
@@ -42,6 +45,7 @@ class Syncronizer(object):
             print("main {}".format(threading.get_native_id()))
             worker = SyncWorker(settings, pdb, previous=self.worker)
             worker.finished.connect(lambda: self.finish_init(id))
+            
             self.worker, self.init_thread = self.start_thread(worker, worker.initialize)
 
             sync_interval = settings.sync_rate
@@ -53,7 +57,27 @@ class Syncronizer(object):
             self.sync_loop.stop()
             self.finish_running(id)
 
+    def handle_update(self, id, type, arg1, arg2):
+        if self.profile_lock.get('current') == id:
+            print('{}, {}, {}'.format(type, arg1, arg2))
+            if type == 'conn':
+                self.status.set_conn_status(arg1, arg2)
+            elif type == 'sync':
+                self.status.set_sync_status(arg1, arg2)
+            elif type == 'pull':
+                self.status.set_pull_status(arg1)
+                if arg1 == 'Up to date':
+                    self.on_pull_success()
+            elif type == 'push':
+                self.status.set_push_status(arg1)
+            elif type == 'auth':
+                self.decrypt_config()
+    
+    def decrypt_config(self):
+        pass
+
     def start_thread(self, worker, exec, new_remote = True):
+        id = self.pdb.id
         if new_remote:
             self.remote = RemoteDb()
         thread = QThread()
@@ -63,6 +87,7 @@ class Syncronizer(object):
         thread.started.connect(exec)
         worker.finished.connect(thread.quit)
         worker.finished.connect(worker.deleteLater)
+        worker.on_status.connect(lambda type, arg1, arg2: self.handle_update(id, type, arg1, arg2))
         thread.finished.connect(thread.deleteLater)
         thread.start()
         return worker, thread
@@ -115,14 +140,12 @@ class Syncronizer(object):
             worker = SyncWorker(self.settings, self.pdb, previous=self.worker)
             worker.finished.connect(lambda: self.finish_running(id))
             worker.finished.connect(self.stop_aquire_lock)
-            worker.pull_success.connect(lambda: self.on_pull_success(id))
             worker.acquire_lock_sync.connect(self.start_aquire_lock)
             worker.release_lock_sync.connect(self.stop_aquire_lock)
             self.worker, self.sync_thread = self.start_thread(worker, worker.syncronize)
 
-    def on_pull_success(self, id):
-        if self.profile_lock.get('current') == id:
-            self.ui_config.load_departments()
+    def on_pull_success(self):
+        self.ui_config.load_departments()
 
     def try_(self, exec):
         try:
@@ -179,9 +202,9 @@ class SyncWorker(QObject):
         self.lock = None
 
     finished = pyqtSignal()
-    pull_success = pyqtSignal()
     acquire_lock_sync = pyqtSignal()
     release_lock_sync = pyqtSignal()
+    on_status = pyqtSignal(str, str, str)
 
     def start_aquire_lock(self):
         lock = self.remote.acquire_write_lock(self.pdb.id)
@@ -207,6 +230,7 @@ class SyncWorker(QObject):
     def initialize(self):
         self.set_stager()
         if not self.settings.is_local():
+            self.on_status.emit('sync', 'Initializing', 'Initializing')
             stamp = self.stager.get_update_stamp()
             if stamp == None:
                 self.stager.stage_config()
@@ -218,11 +242,21 @@ class SyncWorker(QObject):
         self.finish()
 
     def syncronize(self):
+        self.on_status.emit('sync', 'Syncronizing', 'Syncronizing')
         self.set_stager()
         connect = self.remote.connect(self.settings.read_config)
         crypto = CryptoManager(self.pdb.Session)
         timer = Time()
+
+        try:
+            if self.stager.has_staged_records():
+                self.on_status.emit('push', '0/{}'.format(len(self.stager.staged_records)), None)
+            else: 
+                self.on_status.emit('push', '0/0', None)
+        except: pass
+
         if connect:
+            self.on_status.emit('conn', 'Online', 'Online')
             try:
                 print('key')
                 pub_key = self.remote.get_pub_key()
@@ -232,9 +266,13 @@ class SyncWorker(QObject):
                     print('lock')
                     lock = self.remote.get_current_lock()
                     timer.start_measure("Pull")
+                    self.on_status.emit('sync', 'Pulling from Remote', 'Pulling Remote')
+                    self.on_status.emit('pull', 'Pending', None)
                     self.stager.pull_from_remote(self.remote, crypto)
+                    self.on_status.emit('pull', 'Up to date', None)
                     timer.stop_measure("Pull")
-                    self.pull_success.emit()
+                    pull_status = 'Sync Complete'
+                    sync_status = 'Sync Complete'
                     if self.settings.is_remote_write():
                         print('check staged')
                         if self.stager.has_staged_records():
@@ -249,26 +287,39 @@ class SyncWorker(QObject):
                                         lock = self.start_aquire_lock()
                                         if lock != None:
                                             timer.start_measure('Push')
-                                            self.stager.push_to_remote(self.remote, crypto, pub_key)
+                                            self.on_status.emit('sync', 'Pushing to Remote', 'Pushing to Remote')
+                                            self.stager.push_to_remote(self.remote, crypto, pub_key, lambda c: self.on_status.emit('push', c, None))
                                             timer.stop_measure('Push')
                                             self.stop_aquire_lock()
                                         else:
                                             print('no lock')
+                                            sync_status = 'Sync Problem'
+                                            pull_status = 'Waiting for remote lock'
                                     else:
                                         print('lock state changed')
+                                        sync_status = 'Sync Problem'
+                                        pull_status = 'Remote lock changed after pull'
                                 else:
                                     # return failed to connect to db
                                     error = self.remote.status['error']
                                     print(error)
+                                    self.on_status.emit('conn', 'Offline', error)
+                                    sync_status = 'Sync Problem'
+                                    pull_status = 'Remote is offline'
                             else:
                                 # return request for password
+                                self.on_status.emit('auth', None, None)
                                 print('write encrypted')
+                                sync_status = 'Sync Complete*'
+                                pull_status = 'Authentication required for remote push'
                         else:
                             print('no push records')
                     # return read sync complete
                     print('sync complete')
+                    self.on_status.emit('sync', sync_status, pull_status)
                 else:
-                    print('key mismatch')
+                    self.on_status.emit('sync', 'Sync Error', 'Public Key mismatch')
+                    print('pub key mismatch')
                     # return key mismatch
             except Exception as e:
                 # return permission/network errror dialog + localdb
@@ -284,7 +335,11 @@ class SyncWorker(QObject):
                     try: error = e.orig.args[len(e.orig.args)-1]
                     except: pass
                 print(error)
+                self.on_status.emit('sync', 'Sync Error', error)
         else:
             error = self.remote.status['error']
             print(error)
+            self.on_status.emit('conn', 'Offline', error)
+            self.on_status.emit('pull', 'Pending', None)
+            self.on_status.emit('sync', 'Sync Problem', 'Remote is Offline')
         return self.finish()

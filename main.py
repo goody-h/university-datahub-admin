@@ -104,6 +104,15 @@ class Ui_centralWidget(object):
         self.menubar = QtWidgets.QMenuBar(window)
         self.menubar.setGeometry(QtCore.QRect(0, 0, 584, 21))
         self.menubar.setObjectName("menubar")
+        self.menubar.setStyleSheet("""
+                #menubar {
+                    border-style: outset;
+                    border-width: 2px;
+                    border-color: grey white grey white;
+                }
+        
+            """
+        )
         self.menuPreferences = QtWidgets.QMenu(self.menubar)
         self.menuPreferences.setObjectName("menuPreferences")
         window.setMenuBar(self.menubar)
@@ -118,10 +127,24 @@ class Ui_centralWidget(object):
 
         self.menubar.addAction(self.menuPreferences.menuAction())
 
-        self.horizontalLayout = QtWidgets.QHBoxLayout(centralWidget)
-        self.horizontalLayout.setContentsMargins(0, 0, 0, 0)
-        self.horizontalLayout.setSpacing(0)
-        self.horizontalLayout.setObjectName("horizontalLayout")
+        self.menuHelp = QtWidgets.QMenu(self.menubar)
+        self.menuHelp.setObjectName("menuHelp")
+
+        self.actionAbout = QtWidgets.QAction(window)
+        self.actionAbout.setObjectName("actionAbout")
+        self.menuHelp.addAction(self.actionAbout)
+
+        self.actionHelp = QtWidgets.QAction(window)
+        self.actionHelp.setObjectName("actionHelp")
+        self.menuHelp.addAction(self.actionHelp)
+
+        self.menubar.addAction(self.menuHelp.menuAction())
+
+
+        self.verticalMain = QtWidgets.QVBoxLayout(centralWidget)
+        self.verticalMain.setContentsMargins(0, 0, 0, 0)
+        self.verticalMain.setSpacing(0)
+        self.verticalMain.setObjectName("horizontalLayout")
         self.mainbody = QtWidgets.QWidget(centralWidget)
         self.mainbody.setObjectName("mainbody")
         self.verticalLayout = QtWidgets.QVBoxLayout(self.mainbody)
@@ -315,7 +338,7 @@ class Ui_centralWidget(object):
         self.smButton = QtWidgets.QCheckBox(self.widget_2)
         self.smButton.setObjectName("smButton")
 
-        self.widget_o = HLayout(self.widget_2, 'widget_o', 100)        
+        self.widget_o = HLayout(self.widget_2, 'widget_o', 100)
 #
 
         self.matNumberLineEdit = QtWidgets.QLineEdit(self.widget_o.widget)
@@ -355,15 +378,39 @@ class Ui_centralWidget(object):
         self.verticalLayout_5.addWidget(self.widget_5)
         self.horizontalLayout_2.addWidget(self.spreadsheet)
         self.verticalLayout.addWidget(self.cardsFrame, 0, QtCore.Qt.AlignLeft)
-        self.horizontalLayout.addWidget(self.mainbody)
+
+
+        self.statusBar = HLayout(self.centralWidget, 'statusBar', 0)
+        self.statusBar.hlayout.setContentsMargins(10, 2, 10, 2)
+        self.statusBar.hlayout.setSpacing(0)
+        self.statusBar.widget.setStyleSheet("""
+                #statusBar {
+                    background: white;
+                    border-style: outset;
+                    border-width: 2px;
+                    border-color: grey white white white;
+                    padding: 20px;
+                }
+                QPushButton {
+                  background-color: white;
+                  color: black;
+                  border-style: solid;
+                  border-width: 2px;
+                  border-color: white white white grey;
+                  border-radius: 0px;
+                  padding: 6px;
+                  min-width: 80px;
+                }
+                QPushButton:hover {
+                    background-color: rgb(200, 197, 197);
+                }
+            """
+        )
+        self.verticalMain.addWidget(self.mainbody)
+        self.verticalMain.addWidget(self.statusBar.widget)
 
         self.retranslateUi(window)
         # QtCore.QMetaObject.connectSlotsByName(window)
-
-        centralWidget.setFixedSize(centralWidget.sizeHint())
-        window.setFixedSize(window.sizeHint())
-
-
 ####
         self.dpts = []
         self.configure_profile()
@@ -372,6 +419,9 @@ class Ui_centralWidget(object):
         self.progress = ProgressDialog(centralWidget, self.get_size_from_ratio(2.5, 3.5))
         self.worker = None
         self.thread = None
+
+        centralWidget.setFixedSize(centralWidget.sizeHint())
+        window.setFixedSize(window.sizeHint())
 
     def retranslateUi(self, window):
         _translate = QtCore.QCoreApplication.translate
@@ -407,6 +457,11 @@ class Ui_centralWidget(object):
         self.menuPreferences.setTitle(_translate("window", "Profiles"))
         self.setPreferencesAction.setText(_translate("window", "New"))
         self.setPreferencesAction2.setText(_translate("window", "Import"))
+
+        self.menuHelp.setTitle(_translate("window", "Help"))
+        self.actionHelp.setText(_translate("window", "Help"))
+        self.actionAbout.setText(_translate("window", "About"))
+
 
     def attach_event_handlers(self):
         self.selectFileButton.clicked.connect(self.select_handler)

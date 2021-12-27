@@ -93,12 +93,14 @@ class Stager(object):
         self.session.merge(config)
 
     def has_staged_records(self):
-        self.staged_records = self.session.query(Upload).order_by(Upload._timestamp_).limit(1).all()
+        self.staged_records = self.session.query(Upload).order_by(Upload._timestamp_).all()
         print(len(self.staged_records))
         return len(self.staged_records) > 0
 
-    def push_to_remote(self, remote, crypto = None, pub_key = None):
+    def push_to_remote(self, remote, crypto = None, pub_key = None, on_push = lambda c: None):
         if self.is_writer:
+            total = len(self.staged_records)
+            sum = 0
             self.staged_records = self.session.query(Upload).order_by(Upload._timestamp_).limit(100).all()
             remote_session = remote.Session()
             remote.session = remote_session
@@ -139,6 +141,10 @@ class Stager(object):
                     self.set_update_stamp(ts)
                     self.session.query(Upload).filter(Upload._timestamp_ <= ps).delete()
                     self.session.commit()
+                    sum += len(self.staged_records)
+                    try:
+                        on_push('{}/{}'.format(sum, total))
+                    except: pass
                     print('pushed {}'.format(len(self.staged_records)))
                     self.staged_records = self.session.query(Upload).order_by(Upload._timestamp_).limit(100).all()
                 remote_session.close()
