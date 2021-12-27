@@ -621,7 +621,7 @@ class Worker(QObject):
     load_departments = pyqtSignal()
     
     def get_time_suffix(self):
-        return str(self.timer.get_time_in_micro() % 10000000)
+        return str((math.floor(self.timer.get_time_in_micro() / 1000000)) % 10000000)
 
     def spreadsheet_handler(self):
         mats = self.app.matNumberLineEdit.text().upper().rstrip(',')
