@@ -180,6 +180,7 @@ class LockWorker(QObject):
         self.c_thread = c_thread
 
     finished = pyqtSignal()
+    on_status = pyqtSignal(str, str, str)
 
     def aquire_lock(self):
         print('try acquire lock')
