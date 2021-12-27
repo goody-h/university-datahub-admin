@@ -35,7 +35,7 @@ class _Level(object):
 
         self.tqp = 0
         self.tcu = 0
-        self.tco = 0
+        self.tco = []
 
         ws = None
         self.tables = None
@@ -99,12 +99,15 @@ class _Level(object):
                 result['reason'] += '[No extra courses allowed in this session] \n'
                 self.reject.append(result)
     
-    def commit_unknowns(self, results, wb, has_reason = False):
+    def commit_extra(self, results, wb, tag = 'unknown'):
         b = 'Unknown Courses'
         t = 'Unknown'
-        if has_reason:
+        if tag == 'flagged':
             b = 'Flagged Results'
             t = "Flagged"
+        elif tag == 'outstanding':
+            b = 'Outstanding Courses'
+            t = "Outstanding"
         if len(results) > 0 and wb[b] != None and wb[b].tables.get(t) != None:
             ws = wb[b]
             table = ws.tables.get(t)
@@ -122,9 +125,8 @@ class _Level(object):
                 if result.get('title') == None:
                     result['title'] = '?'
                 ws['B' + str(i + top)] = result.get('title')
-                if result.get('cu') == None:
-                    result['cu'] = '?'
-                ws['C' + str(i + top)] = result.get('cu')
+                cu = result.get('cu') if result.get('cu') != None else result.get('_cu') if result.get('_cu') != None else '?'
+                ws['C' + str(i + top)] = cu
                 ws['D' + str(i + top)] = result.get('score')
                 ws['F' + str(i + top)] = str(result.get('session') - 1) + '/' + str(result.get('session'))
                 ws['G' + str(i + top)] = result.get('reason').rstrip(' \n')
@@ -138,7 +140,7 @@ class _Level(object):
     def commit(self):
         tqp = 0
         tcu = 0
-        tco = 0
+        tco = []
 
         self.tables = []
         refs = []
@@ -205,7 +207,8 @@ class _Level(object):
                     if result['flags'].count('carryover') > 0:
                         gp = min(3, gp)
                     if score < 40:
-                        tco += 1
+                        result['_out'] = 0
+                        tco.append(result)
                     tcu += unit
                     tqp += gp * unit
                 i += 1
@@ -241,10 +244,11 @@ class _Level(object):
 class ResultFilter():
     def __init__(self, cache):
         if cache.get('sessions') == None:
-            cache.update({'sessions': [], 'last_sem': 100, 'electives': {}, 'reject': [], 'review': False})
+            cache.update({'sessions': [], 'last_sem': 100, 'electives': {}, 'reject': [], 'outstanding': [], 'review': False})
         self.hold = []
         self.cache = cache
         self.reject = cache['reject']
+        self.outstanding = cache['outstanding']
         self.reset = True
         self.data = {}
     def reset_filter(self):
@@ -308,7 +312,7 @@ class CourseFilter(ResultFilter):
         self.cache.update(session_utils.rectify(self.data['sessions'], self.department.levels, self.department.semesters, self.missed_sessions))
         if self.wb != None:
             unknown = _Level(None, None, None, None, None)
-            unknown.commit_unknowns(self.reject, self.wb)
+            unknown.commit_extra(self.reject, self.wb)
         return super().release_hold()
 
 class SessionFilter(ResultFilter):
@@ -346,6 +350,7 @@ class CarryoverFilter(ResultFilter):
                 result['_session'] = result['session'] + 0.4
                 result['code'] += '*'
                 result['flags'].append('carryover')
+                map['_cu'] = map.get('cu')
                 map['cu'] = None
             elif result['level'] / 100 != self.cache['sessions'].index(result['session']) + 1:
                 result['_session'] = result['session'] + 0.2
@@ -472,13 +477,18 @@ class MissingFilter(ResultFilter):
                 result = {}
                 result.update(courses[key])
                 session = self.cache['sessions'][int(courses[key]['level']/100) - 1]
-                result.update({'courseCode': key, 'cu': None, '_session': session + 0.5, 'session': session, 'comment': '', 'flags': [], 'reason': '' })
+                result.update({'courseCode': key, 'cu': None, '_cu': result.get('cu'), '_session': session + 0.5, 'session': session, 'comment': '', 'flags': [], 'reason': '' })
 
                 level = self.cache['sessions'].index(result['session']) + 1
                 sem = result['sem']
                 if self.levels.get(level) == None:
                     self.levels[level] = _Level(level, result['session'], wb, level_data, department, user)
-                self.levels[level].add_result(result, sem)
+                if elective_pair > 0:
+                    result['title'] += ' [E]'
+                self.levels[level].add_result(result, sem)                    
+                result['_out'] = 1
+                self.outstanding.append(result)
+                
         return super().release_hold()
 
 class StopFilter(ResultFilter):
@@ -492,10 +502,13 @@ class StopFilter(ResultFilter):
             level.commit()
         for level in self.levels.values():
             level.finish()
-            self.levels[level.level] = {'tco': level.tco, 'tcu': level.tcu, 'tqp': level.tqp, 'session': level.session }
+            self.outstanding.extend(level.tco)
+            self.levels[level.level] = {'tco': len(level.tco), 'tcu': level.tcu, 'tqp': level.tqp, 'session': level.session }
         if self.wb != None:
             unknown = _Level(None, None, None, None, None)
-            unknown.commit_unknowns(self.reject, self.wb, has_reason = True)
+            unknown.commit_extra(self.reject, self.wb, tag = 'flagged')
+            self.outstanding.sort(key = lambda i: (i['_out'], i['_session'], i['sem'], i['code']))
+            unknown.commit_extra(self.outstanding, self.wb, tag = 'outstanding')
         return super().release_hold()
 
 class SpreadSheet(object):
