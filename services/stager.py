@@ -1,3 +1,4 @@
+import math
 from models.config import Config
 from models.course import Course
 from models.department import Department
@@ -13,6 +14,7 @@ class Stager(object):
         self.session = session
         self.is_writer = is_writer
         self.staged_records = None
+        self.staged_count = 0
         self.timer = Time()
 
     def stage_config(self, crypto = None):
@@ -48,11 +50,14 @@ class Stager(object):
     def stage_record(self, record, primary, crypto = None):
         if self.is_writer:
             obj, string = self.serialize_object(record)
+            time = self.timer.get_next_time_in_micro()
+            if primary == 'config':
+                time = math.floor(time / 1000000)
             upload = Upload(
                 key = obj[primary],
                 table = str(type(record)),
                 value = string,
-                _timestamp_ = self.timer.get_next_time_in_micro()
+                _timestamp_ = time
             )
             if crypto != None:
                 upload._signature_ = crypto.sign(upload)
@@ -93,13 +98,12 @@ class Stager(object):
         self.session.merge(config)
 
     def has_staged_records(self):
-        self.staged_records = self.session.query(Upload).order_by(Upload._timestamp_).all()
-        print(len(self.staged_records))
-        return len(self.staged_records) > 0
+        self.staged_count = self.session.query(Upload).count()
+        return self.staged_count > 0
 
     def push_to_remote(self, remote, crypto = None, pub_key = None, on_push = lambda c: None):
         if self.is_writer:
-            total = len(self.staged_records)
+            total = self.staged_count
             sum = 0
             self.staged_records = self.session.query(Upload).order_by(Upload._timestamp_).limit(100).all()
             remote_session = remote.Session()
@@ -134,14 +138,17 @@ class Stager(object):
                                 remote_session.merge(object)
                                 ts = max(ts, stamp)
                         ps = max(ps, int(record._timestamp_))
+                        self.session.query(Upload).filter(Upload._timestamp_ == int(record._timestamp_), Upload.key == str(record.key)).delete()
                     if not remote.has_lock():
                         print('no lock')
                         break
                     remote_session.commit()
                     self.set_update_stamp(ts)
-                    self.session.query(Upload).filter(Upload._timestamp_ <= ps).delete()
                     self.session.commit()
+
                     sum += len(self.staged_records)
+                    self.has_staged_records()
+                    total = max(self.staged_count + sum, total)
                     try:
                         on_push('{}/{}'.format(sum, total))
                     except: pass

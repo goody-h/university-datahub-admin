@@ -251,7 +251,7 @@ class SyncWorker(QObject):
 
         try:
             if self.stager.has_staged_records():
-                self.on_status.emit('push', '0/{}'.format(len(self.stager.staged_records)), None)
+                self.on_status.emit('push', '0/{}'.format(self.stager.staged_count), None)
             else: 
                 self.on_status.emit('push', '0/0', None)
         except: pass
