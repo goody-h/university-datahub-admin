@@ -12,7 +12,7 @@ class ProfileDb(Base):
         self.name = name
         self.id = id
         self.db_file = self.store.get_db_dir() + 'profile_{}.db'.format(name)
-        self.engine = create_engine('sqlite:///{}'.format(self.db_file), connect_args={'timeout': 15})
+        self.engine = create_engine('sqlite:///{}'.format(self.db_file), connect_args={'timeout': 300})
         self.Session = sessionmaker(bind=self.engine)
 
     def export(self, file):

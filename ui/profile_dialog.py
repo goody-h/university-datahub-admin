@@ -55,9 +55,9 @@ class ProfileDialog(QDialog):
         grid.setColumnStretch(1, 4)
         grid.setColumnStretch(2, 4)
         grid.addWidget(self.deleteBtn,0,0)
-        grid.addWidget(self.passwdBtn,0,1)
-        grid.addWidget(self.cloneBtn,0,2)
-        grid.addWidget(self.exportBtn,1,0)
+        grid.addWidget(self.cloneBtn,0,1)
+        grid.addWidget(self.exportBtn,0,2)
+        grid.addWidget(self.passwdBtn,1,0)
         self.actionGroupBox.setLayout(grid)
 
         self.buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
@@ -191,6 +191,8 @@ class ProfileDialog(QDialog):
         if self.mode == 'update':
             if self.crypto == None or not self.crypto.is_loaded() or self.settings == None or self.db == None:
                 self.close()
+            if self.settings.is_remote_read() or self.settings.read_only:
+                self.passwdBtn.hide()
             self.populate_form()
         if self.mode == 'new':
             if self.settings == None:
