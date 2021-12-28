@@ -222,7 +222,7 @@ class SyncWorker(QObject):
         print("worker {}".format(threading.get_native_id()))
         if self.lock != None:
             self.stop_aquire_lock()
-        self.stager.commit()
+        self.stager.session.close()
         self.finished.emit()
 
     def set_stager(self):
@@ -240,6 +240,7 @@ class SyncWorker(QObject):
                 self.stager.stage_bio()
                 self.stager.stage_results()
                 self.stager.set_update_stamp(0)
+        self.stager.session.commit()
         self.finish()
 
     def syncronize(self):
