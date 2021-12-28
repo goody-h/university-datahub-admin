@@ -108,7 +108,7 @@ class UI_Config(object):
             confirm, ok = QtWidgets.QInputDialog.getText(self.ui.centralWidget, "Attention", title, QtWidgets.QLineEdit.Password)
             passwd = confirm
             if not ok:
-                self.ui.show_message('Cancelled', False) 
+                self.show_message('Cancelled', False) 
                 return on_finish()
             if passwd == new:
                 self.loader.start()
