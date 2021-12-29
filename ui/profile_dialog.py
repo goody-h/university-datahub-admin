@@ -101,11 +101,12 @@ class ProfileDialog(QDialog):
 
     def decrypt_write_config(self):
         crypto = CryptoManager(self.db.Session)
-        status = self.ph.ui_config.validate_password(crypto,  "no-reset", self.settings.is_remote_write())
-        if status == 'correct' or status == 'default':
-            config = self.settings.write_config.removeprefix('[REDACTED]')
-            config = crypto.decrypt_with_key(config)
-            self.writeLineEdit.setText(config)
+        def on_status(status):
+            if status == 'correct' or status == 'default':
+                config = self.settings.write_config.removeprefix('[REDACTED]')
+                config = crypto.decrypt_with_key(config)
+                self.writeLineEdit.setText(config)
+        self.ph.ui_config.validate_password(crypto,  "no-reset", self.settings.is_remote_write(), on_status)
 
     def hide_write_show(self):
         self.showBtn.hide()
