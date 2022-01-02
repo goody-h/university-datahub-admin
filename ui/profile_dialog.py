@@ -48,6 +48,12 @@ class ProfileDialog(QDialog):
         self.actionGroupBox = QGroupBox("Actions")
         grid = QGridLayout()
         self.deleteBtn = QPushButton('Delete Profile')
+        self.deleteBtn.setStyleSheet("""
+                QPushButton {
+                  color: red;
+                }
+            """
+        )
         self.passwdBtn = QPushButton('Update Password')
         self.cloneBtn = QPushButton('Clone Profile')
         self.exportBtn = QPushButton('Export')
@@ -141,11 +147,13 @@ class ProfileDialog(QDialog):
         print('show dialog')
 
     def delete_profile(self):
-        profile = ProfileManager()
-        profile.delete_current_profile()
-        self.ph.initialize()
-        self.db.delete()
-        self.close()
+        result = QMessageBox.critical(self.parent_, 'Warning', '(Hint! You might want to export the profile before deleting)\n\nThis process is irreversible. Are you sure you want to delete this Profile?', QMessageBox.Yes | QMessageBox.No)
+        if result == QMessageBox.Yes:
+            profile = ProfileManager()
+            profile.delete_current_profile()
+            self.ph.initialize()
+            self.db.delete()
+            self.close()
 
     def on_accept(self):
         name = self.get_text(self.nameLineEdit)
