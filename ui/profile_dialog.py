@@ -24,12 +24,12 @@ class ProfileDialog(QDialog):
         self.crypto = crypto
 
         self.setWindowTitle("Profile")
-        self.setMinimumSize(2200, 600)
+        self.setMinimumSize(833, 250)
         self.setWindowModality(Qt.WindowModality.WindowModal)
 
         self.formGroupBox = QGroupBox("Profile Settings")
         self.nameLineEdit = QLineEdit()
-        self.nameLineEdit.setFixedWidth(500)
+        self.nameLineEdit.setFixedWidth(208)
         self.readLineEdit = QLineEdit()
         self.writeLineEdit = QLineEdit()
         self.showBtn = QPushButton('show')
@@ -41,7 +41,7 @@ class ProfileDialog(QDialog):
         self.writeWidget.setLayout(hlayout)
         self.modeCheck = QCheckBox()
         self.syncSpinBar = QSpinBox()
-        self.syncSpinBar.setFixedWidth(200)
+        self.syncSpinBar.setFixedWidth(83)
         self.syncSpinBar.setRange(0, 3600)
         self.createForm()
 

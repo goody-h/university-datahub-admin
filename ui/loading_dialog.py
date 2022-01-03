@@ -36,16 +36,17 @@ class LoadingDialog(QDialog):
         self.closed = closed
 
         self.setWindowTitle(" ")
-        self.setFixedSize(500, 100)
+        self.setFixedSize(208, 42)
         self.setWindowModality(Qt.WindowModality.WindowModal)
 
         self.loader = QtWaitingSpinner(centerOnParent=False)
         self.loader.setColor(QColor(Qt.black))
+        self.loader.applySizeFactor(2.4)
 
         mainLayout = QHBoxLayout()
         mainLayout.addWidget(self.loader)
         mainLayout.addWidget(QLabel("Loading, Please wait..."))
-        mainLayout.setContentsMargins(80, 0, 50, 0)
+        mainLayout.setContentsMargins(33, 0, 21, 0)
         self.setLayout(mainLayout)
         self.loader.start()
         self.rejected.connect(self.on_close)

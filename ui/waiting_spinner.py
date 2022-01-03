@@ -183,6 +183,11 @@ class QtWaitingSpinner(QWidget):
     def setMinimumTrailOpacity(self, minimumTrailOpacity):
         self.mMinimumTrailOpacity = minimumTrailOpacity
 
+    def applySizeFactor(self, scale):
+        self.setLineWidth(self.lineWidth() / scale)
+        self.setLineLength(self.lineLength() / scale)
+        self.setInnerRadius(self.innerRadius() / scale)
+
 
 if __name__ == '__main__':
     import sys

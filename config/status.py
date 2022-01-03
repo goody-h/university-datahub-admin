@@ -10,23 +10,20 @@ class StatusBarManager(object):
         label1 = QLabel("Status: ")
         self.conn_status = QtWidgets.QPushButton()
         self.conn_status.setText("Offline    ")
-        syncIcon = QLabel("")
+        syncIcon = self.getIcon("static/icon/cloud-sync.svg")
         self.syncIcon = syncIcon
-        syncIcon.setPixmap(QtGui.QPixmap("static/icon/cloud-sync.svg"))
         self.push_status = QLabel("  0/0")
         self.statusBar.addWidget(label1, 0, alignment= QtCore.Qt.AlignLeft)
         self.statusBar.addWidget(self.conn_status, 0, alignment= QtCore.Qt.AlignLeft)
         self.statusBar.addWidget(syncIcon, 0, alignment= QtCore.Qt.AlignLeft)
         self.statusBar.addWidget(self.push_status, 0, alignment= QtCore.Qt.AlignLeft)
-        upIcon = QLabel("")
+        upIcon = self.getIcon("static/icon/up-arrow.svg")
         self.upIcon = upIcon
-        upIcon.setPixmap(QtGui.QPixmap("static/icon/up-arrow.svg"))
         self.statusBar.addWidget(upIcon, 0, alignment= QtCore.Qt.AlignLeft)
         self.pull_status = QLabel("  Pending")
         self.statusBar.addWidget(self.pull_status, 0, alignment= QtCore.Qt.AlignLeft)
-        downIcon = QLabel("")
+        downIcon = self.getIcon("static/icon/down-arrow.svg")
         self.downIcon = downIcon
-        downIcon.setPixmap(QtGui.QPixmap("static/icon/down-arrow.svg"))
         self.statusBar.addWidget(downIcon, 0, alignment= QtCore.Qt.AlignLeft)
         self.statusBar.addStretch(0)
 
@@ -37,7 +34,7 @@ class StatusBarManager(object):
         self.unlock = QtWidgets.QPushButton()
         self.unlock.setText('Unlock to push')
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap("static/icon/lock.svg"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon.addPixmap(self.getPixMap("static/icon/lock.svg"))
 
         self.unlock.setIcon(icon)
         self.unlock.setObjectName("newprofile")
@@ -47,6 +44,33 @@ class StatusBarManager(object):
         self.sync_status_info = ""
 
         self.attach_listeners()
+
+    def getPixMap(self, file):
+        pix = QtGui.QPixmap(file)
+        pix.setDevicePixelRatio(2.5)
+        return pix
+
+    def getIcon(self, file):
+        icon = QtGui.QIcon()
+        icon.addPixmap(self.getPixMap(file), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        button = QtWidgets.QPushButton()
+        button.setStyleSheet("""
+            QPushButton {
+                background-color: transparent;
+                border-style: none;
+                border-width: 0px;
+                border-radius: 0px;
+                padding: 0px;
+                min-width: 0px;
+            }
+            QPushButton:hover {
+                background-color: transparent;
+            }
+            """
+        )
+        button.setIcon(icon)
+        return button
+        
 
     def attach_listeners(self):
         self.conn_status.clicked.connect(lambda: self.ph.ui_config.show_message(self.conn_status_info, long=False))

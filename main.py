@@ -1,9 +1,14 @@
-import re, sys, math
+import re, sys, math, os
+
+os.environ['QT_AUTO_SCREEN_SCALE_FACTOR'] = '1'
+
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import QSize, Qt
 from PyQt5.QtWidgets import QMessageBox
 from PyQt5.QtCore import QObject, QThread, pyqtSignal
-from services.crypto import CryptoManager
+
+if hasattr(QtCore.Qt, 'AA_UseHighDpiPixmaps'):
+    QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)
 
 from transformers.master_sheet import MasterSheet
 from transformers.spread_sheet import SpreadSheet
@@ -11,7 +16,6 @@ from transformers.student_list import StudentList
 from transformers.list_upload import ListUpload
 from transformers.summary_sheet import SummarySheet
 from transformers.course_list import CourseList
-
 from transformers.sample_data.result import user
 
 from models.result import Result
@@ -22,6 +26,7 @@ from config.profile_handler import ProfileHandler
 from services.storage import Storage
 from services.time import Time
 from services.stager import Stager
+from services.crypto import CryptoManager
 
 import tkinter as tk
 from tkinter import filedialog
@@ -45,69 +50,67 @@ class Ui_centralWidget(object):
         self.centralWidget = centralWidget
         window.setCentralWidget(centralWidget)
         centralWidget.setObjectName("centralWidget")
-        centralWidget.setStyleSheet("* {\n"
-"  color: #000000;\n"
-"  border: none;\n"
-"}\n"
-"#centralWidget {\n"
-"  background: #4297A0;\n"
-"}\n"
-"\n"
-"QLineEdit {\n"
-"  background: transparent;\n"
-" background: #EED6D3;\n"
-"   border-style: outset;\n"
-"  border-width: 2px;\n"
-"  border-radius: 5px;\n"
-"  border-color: black;\n"
-"  min-width: 600px;\n"
-"}\n"
-"\n"
-"#appHeader {\n"
-"  color: #F4EAE6;\n"
-"}\n"
-"\n"
-"QPushButton {\n"
-"  background-color: #67595E;\n"
-"  color: white;\n"
-"  border-style: outset;\n"
-"  border-width: 2px;\n"
-"  border-radius: 15px;\n"
-"  border-color: black;\n"
-"  padding: 6px;\n"
-"  min-width: 80px;\n"
-"}\n"
-"QPushButton:hover {\n"
-"    background-color: #867c80;\n"
-"}\n"
-"#matNumberLineEdit {\n"
-"  background: #F4EAE6;\n"
-"  border-width: 2px;\n"
-"border-color: black;\n"
-"padding-left: 20px;\n"
-"padding-right: 10px;\n"
-"}\n"
-"#mastersheet{\n"
-"border-style: outset;\n"
-"  border-width: 2px;\n"
-"  border-radius: 15px;\n"
-"  border-color: black;\n"
-"}\n"
-"#spreadsheet{\n"
-"border-style: outset;\n"
-"  border-width: 2px;\n"
-"  border-radius: 15px;\n"
-"  border-color: black;\n"
-"}")
+        centralWidget.setStyleSheet("""
+            * {
+                color: #000000;
+                border: none;
+            }
+            #centralWidget {
+                background: #4297A0;
+            }
+            QLineEdit {
+                background: transparent;
+                background: #EED6D3;
+                border-style: outset;
+                border-width: 0.83px;
+                border-radius: 2.08px;
+                border-color: black;
+                min-width: 250px;
+            }
+            #appHeader {
+                color: #F4EAE6;
+            }
+            QPushButton {
+                background-color: #67595E;
+                color: white;
+                border-style: outset;
+                border-width: 0.83px;
+                border-radius: 6.25px;
+                border-color: black;
+                padding: 2.5px;
+                min-width: 33.33px;
+            }
+            QPushButton:hover {
+                background-color: #867c80;
+            }
+            #matNumberLineEdit {
+                background: #F4EAE6;
+                border-width: 0.83px;
+                border-color: black;
+                padding-left: 8.33px;
+                padding-right: 4.16px;
+            }
+            #mastersheet{
+                border-style: outset;
+                border-width: 0.83px;
+                border-radius: 6.25px;
+                border-color: black;
+            }
+            #spreadsheet{
+                border-style: outset;
+                border-width: 0.83px;
+                border-radius: 6.25px;
+                border-color: black;
+            }"""
+        )
 
-#123
         self.menubar = QtWidgets.QMenuBar(window)
-        self.menubar.setGeometry(QtCore.QRect(0, 0, 584, 21))
+        self.menubar.setGeometry(QtCore.QRect(0, 0, 243, 7))
         self.menubar.setObjectName("menubar")
         self.menubar.setStyleSheet("""
                 #menubar {
                     border-style: outset;
-                    border-width: 2px;
+                    border-width: 0.83px;
                     border-color: grey white grey white;
                 }
         
@@ -153,10 +156,7 @@ class Ui_centralWidget(object):
         self.headerFrame.setObjectName("headerFrame")
         self.horizontalLayout_4 = QtWidgets.QHBoxLayout(self.headerFrame)
         self.horizontalLayout_4.setObjectName("horizontalLayout_4")
-        self.label_4 = QtWidgets.QLabel(self.headerFrame)
-        self.label_4.setMaximumSize(QtCore.QSize(65, 16777215))
-        self.label_4.setText("")
-        self.label_4.setPixmap(QtGui.QPixmap("static/icon/monitor.svg"))
+        self.label_4 = self.getIcon("static/icon/monitor.svg")
         self.label_4.setObjectName("label_4")
         self.horizontalLayout_4.addWidget(self.label_4)
         self.appHeader = QtWidgets.QLabel(self.headerFrame)
@@ -169,13 +169,13 @@ class Ui_centralWidget(object):
 ######
 
         self.profileSel = QtWidgets.QComboBox(self.headerFrame)
-        self.profileSel.setMinimumSize(QtCore.QSize(300, 0))
+        self.profileSel.setMinimumSize(QtCore.QSize(200, 0))
         self.profileSel.setObjectName("profileSel")
         self.horizontalLayout_4.addWidget(self.profileSel, 0, QtCore.Qt.AlignRight)
         
         self.newprofile = QtWidgets.QPushButton(self.headerFrame)
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap("static/icon/add.svg"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon.addPixmap(self.getPixMap("static/icon/add.svg"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
 
         self.newprofile.setIcon(icon)
         self.newprofile.setObjectName("newprofile")
@@ -184,7 +184,7 @@ class Ui_centralWidget(object):
 
         self.password = QtWidgets.QPushButton(self.headerFrame)
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap("static/icon/settings.svg"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon.addPixmap(self.getPixMap("static/icon/settings.svg"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
 
         self.password.setIcon(icon)
         self.password.setObjectName("password")
@@ -202,7 +202,7 @@ class Ui_centralWidget(object):
         self.horizontalLayout_2 = QtWidgets.QHBoxLayout(self.cardsFrame)
         self.horizontalLayout_2.setObjectName("horizontalLayout_2")
         self.mastersheet = QtWidgets.QWidget(self.cardsFrame)
-        self.mastersheet.setMinimumSize(QtCore.QSize(325, 0))
+        self.mastersheet.setMinimumSize(QtCore.QSize(135, 0))
         self.mastersheet.setObjectName("mastersheet")
         self.verticalLayout_4 = QtWidgets.QVBoxLayout(self.mastersheet)
         self.verticalLayout_4.setObjectName("verticalLayout_4")
@@ -210,10 +210,7 @@ class Ui_centralWidget(object):
         self.headerWidget.setObjectName("headerWidget")
         self.horizontalLayout_3 = QtWidgets.QHBoxLayout(self.headerWidget)
         self.horizontalLayout_3.setObjectName("horizontalLayout_3")
-        self.label_6 = QtWidgets.QLabel(self.headerWidget)
-        self.label_6.setMaximumSize(QtCore.QSize(65, 16777215))
-        self.label_6.setText("")
-        self.label_6.setPixmap(QtGui.QPixmap("static/icon/codepen.svg"))
+        self.label_6 = self.getIcon("static/icon/codepen.svg")
         self.label_6.setObjectName("label_6")
         self.horizontalLayout_3.addWidget(self.label_6, 0, QtCore.Qt.AlignCenter)
         self.label_2 = QtWidgets.QLabel(self.headerWidget)
@@ -225,7 +222,7 @@ class Ui_centralWidget(object):
         self.horizontalLayout_3.addWidget(self.label_2, 0, QtCore.Qt.AlignCenter)
         self.verticalLayout_4.addWidget(self.headerWidget, 0, QtCore.Qt.AlignTop)
         self.widget_3 = QtWidgets.QWidget(self.mastersheet)
-        self.widget_3.setMinimumSize(QtCore.QSize(250, 100))
+        self.widget_3.setMinimumSize(QtCore.QSize(104, 42))
         self.widget_3.setObjectName("widget_3")
         self.horizontalLayout_6 = QtWidgets.QHBoxLayout(self.widget_3)
         self.horizontalLayout_6.setObjectName("horizontalLayout_6")
@@ -237,7 +234,7 @@ class Ui_centralWidget(object):
         self.label_8.setObjectName("label_8")
         self.horizontalLayout_6.addWidget(self.label_8)
         self.comboBox = QtWidgets.QComboBox(self.widget_3)
-        self.comboBox.setMinimumSize(QtCore.QSize(120, 0))
+        self.comboBox.setMinimumSize(QtCore.QSize(50, 0))
         self.comboBox.setObjectName("comboBox")
         self.comboBox.addItem("")
         self.comboBox.addItem("")
@@ -252,27 +249,24 @@ class Ui_centralWidget(object):
         self.formLayout.setFormAlignment(QtCore.Qt.AlignBottom)
         self.formLayout.setAlignment(QtCore.Qt.AlignBottom)
         self.label_5 = QtWidgets.QLabel(self.widget)
-        self.label_5.setMinimumSize(QtCore.QSize(200, 0))
+        self.label_5.setMinimumSize(QtCore.QSize(83, 0))
         font = QtGui.QFont()
         font.setPointSize(10)
         self.label_5.setFont(font)
         self.label_5.setObjectName("label_5")
         self.formLayout.setWidget(4, QtWidgets.QFormLayout.LabelRole, self.label_5)
-
 #       
         self.delButton = QtWidgets.QCheckBox(self.widget)
         self.delButton.setObjectName("delButton")
         self.formLayout.setWidget(3, QtWidgets.QFormLayout.LabelRole, self.delButton)
 
-
         self.uploadButton = QtWidgets.QPushButton(self.widget)
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap("static/icon/upload.svg"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon.addPixmap(self.getPixMap("static/icon/upload.svg"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
 
         self.uploadButton.setIcon(icon)
         self.uploadButton.setObjectName("uploadButton")
         self.formLayout.setWidget(4, QtWidgets.QFormLayout.FieldRole, self.uploadButton)
-
 
         self.label = QtWidgets.QLabel(self.widget)
         font = QtGui.QFont()
@@ -287,7 +281,7 @@ class Ui_centralWidget(object):
         self.verticalLayout_4.addWidget(self.widget)
         self.horizontalLayout_2.addWidget(self.mastersheet, 0, QtCore.Qt.AlignLeft)
         self.spreadsheet = QtWidgets.QWidget(self.cardsFrame)
-        self.spreadsheet.setMinimumSize(QtCore.QSize(331, 0))
+        self.spreadsheet.setMinimumSize(QtCore.QSize(138, 0))
         self.spreadsheet.setObjectName("spreadsheet")
         self.verticalLayout_5 = QtWidgets.QVBoxLayout(self.spreadsheet)
         self.verticalLayout_5.setObjectName("verticalLayout_5")
@@ -295,9 +289,7 @@ class Ui_centralWidget(object):
         self.headerWidget_2.setObjectName("headerWidget_2")
         self.horizontalLayout_5 = QtWidgets.QHBoxLayout(self.headerWidget_2)
         self.horizontalLayout_5.setObjectName("horizontalLayout_5")
-        self.label_7 = QtWidgets.QLabel(self.headerWidget_2)
-        self.label_7.setText("")
-        self.label_7.setPixmap(QtGui.QPixmap("static/icon/file-text.svg"))
+        self.label_7 = self.getIcon("static/icon/file-text.svg")
         self.label_7.setObjectName("label_7")
         self.horizontalLayout_5.addWidget(self.label_7, 0, QtCore.Qt.AlignCenter)
         self.label_3 = QtWidgets.QLabel(self.headerWidget_2)
@@ -338,9 +330,8 @@ class Ui_centralWidget(object):
         self.smButton = QtWidgets.QCheckBox(self.widget_2)
         self.smButton.setObjectName("smButton")
 
-        self.widget_o = HLayout(self.widget_2, 'widget_o', 100)
+        self.widget_o = HLayout(self.widget_2, 'widget_o', 41)
 #
-
         self.matNumberLineEdit = QtWidgets.QLineEdit(self.widget_o.widget)
         self.matNumberLineEdit.setObjectName("matNumberLineEdit")
         self.widget_o.hlayout.addWidget(self.matNumberLineEdit, 1)
@@ -363,7 +354,7 @@ class Ui_centralWidget(object):
         self.verticalLayout_2.addWidget(self.smButton)
         self.verticalLayout_5.addWidget(self.widget_2)
         self.widget_5 = QtWidgets.QWidget(self.spreadsheet)
-        self.widget_5.setMinimumSize(QtCore.QSize(200, 0))
+        self.widget_5.setMinimumSize(QtCore.QSize(83, 0))
         self.widget_5.setObjectName("widget_5")
         self.verticalLayout_3 = QtWidgets.QVBoxLayout(self.widget_5)
         self.verticalLayout_3.setObjectName("verticalLayout_3")
@@ -381,25 +372,25 @@ class Ui_centralWidget(object):
 
 
         self.statusBar = HLayout(self.centralWidget, 'statusBar', 0)
-        self.statusBar.hlayout.setContentsMargins(10, 2, 10, 2)
+        self.statusBar.hlayout.setContentsMargins(4, 1, 4, 1)
         self.statusBar.hlayout.setSpacing(0)
         self.statusBar.widget.setStyleSheet("""
                 #statusBar {
                     background: white;
                     border-style: outset;
-                    border-width: 2px;
+                    border-width: 0.83px;
                     border-color: grey white white white;
-                    padding: 20px;
+                    padding: 8.33px;
                 }
                 QPushButton {
                   background-color: white;
                   color: black;
                   border-style: solid;
-                  border-width: 2px;
+                  border-width: 0.83px;
                   border-color: white white white grey;
                   border-radius: 0px;
-                  padding: 6px;
-                  min-width: 80px;
+                  padding: 2.5px;
+                  min-width: 33.33px;
                 }
                 QPushButton:hover {
                     background-color: rgb(200, 197, 197);
@@ -455,7 +446,6 @@ class Ui_centralWidget(object):
 
         self.newprofile.setText(_translate("centralWidget", " New profile"))
 
-#123
         self.menuPreferences.setTitle(_translate("window", "Profiles"))
         self.setPreferencesAction.setText(_translate("window", "New"))
         self.setPreferencesAction2.setText(_translate("window", "Import"))
@@ -464,6 +454,31 @@ class Ui_centralWidget(object):
         self.actionHelp.setText(_translate("window", "Help"))
         self.actionAbout.setText(_translate("window", "About"))
 
+    def getPixMap(self, file):
+        pix = QtGui.QPixmap(file)
+        pix.setDevicePixelRatio(2.5)
+        return pix
+
+    def getIcon(self, file):
+        icon = QtGui.QIcon()
+        icon.addPixmap(self.getPixMap(file), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        button = QtWidgets.QPushButton()
+        button.setStyleSheet("""
+            QPushButton {
+                background-color: transparent;
+                border-style: none;
+                border-width: 0px;
+                border-radius: 0px;
+                padding: 0px;
+                min-width: 0px;
+            }
+            QPushButton:hover {
+                background-color: transparent;
+            }
+            """
+        )
+        button.setIcon(icon)
+        return button
 
     def attach_event_handlers(self):
         self.selectFileButton.clicked.connect(self.select_handler)
@@ -1030,7 +1045,9 @@ if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     
     icon = QtGui.QIcon()
-    icon.addPixmap(QtGui.QPixmap("static/icon/monitor.svg"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+    pix = QtGui.QPixmap("static/icon/monitor.svg")
+    pix.setDevicePixelRatio(2.5)
+    icon.addPixmap(pix, QtGui.QIcon.Normal, QtGui.QIcon.Off)
 
     app.setWindowIcon(icon)
     window = MainWindow()
