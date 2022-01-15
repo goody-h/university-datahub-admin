@@ -81,6 +81,11 @@ class SummarySheet(object):
             ws.cell(i + top, 10 + (2 * self.department.levels)).value = out.get('user')['graduate'].upper()
             ws.cell(i + top, 11 + (2 * self.department.levels)).value = out.get('outstanding')
             
+            if out.get('file') != None:
+                ws.cell(i + top, 2).hyperlink = out.get('file')
+            else:
+                ws.cell(i + top, 2).style = ws.cell(top, 3).style
+
             i += 1
         self._create_degree_result_(results)
         try:

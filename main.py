@@ -745,7 +745,8 @@ class Worker(QObject):
                         self.update_progress.emit(1)
                         continue
                     spread_sheet = SpreadSheet()
-                    output = folder + mat_no.replace('/', '-') + '_spreadsheet_'+ suffix + '.xlsx'
+                    _file = mat_no.replace('/', '-') + '_spreadsheet_'+ suffix + '.xlsx'
+                    output = folder + _file
                     filename = output
                     if not gensh:
                         filename = None
@@ -753,6 +754,9 @@ class Worker(QObject):
                         student, record, courses, department,
                         filename = filename,
                     )
+
+                    if gensh:
+                        response['file'] = _file
 
                     print(response)
                     if response['status'] == 'error':
