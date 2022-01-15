@@ -553,13 +553,13 @@ class SpreadSheet(object):
         elect_filter = ElectiveFilter(cache)
         level_filter = LevelFilter(cache, levels, self._wb, department, user)
         miss_filter = MissingFilter(cache, levels, courses)
-
+        stop = StopFilter(cache, levels, self._wb)
         self.evaluate([
             HeadFilter(cache, results),
             course_filter, SignatureFilter(cache), session_filter, carryover_filter, retake_filter1, level_filter,
             HeadFilter(cache),
             course_filter, carryover_filter, retake_filter2, elect_filter, level_filter, miss_filter,
-            StopFilter(cache, levels, self._wb)
+            stop
         ])
          
         self.scored_results = results
@@ -570,7 +570,11 @@ class SpreadSheet(object):
         if len(self.invalid_results) > 0 or cache['review']:
             review = 'YES'
 
-        response = {'status': 'success', 'message': '', 'level_data': levels, 'user': user, 'review': review}
+        outstanding = ''
+        for c in stop.outstanding:
+            outstanding += c['code'] + ', '
+        
+        response = {'status': 'success', 'message': '', 'level_data': levels, 'user': user, 'review': review, 'outstanding': outstanding.removesuffix(', ')}
         print('Written {} results'.format(len(self.scored_results)))
 
         # step 4: remove unused sheets

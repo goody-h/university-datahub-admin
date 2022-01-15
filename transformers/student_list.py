@@ -17,6 +17,7 @@ class StudentList(TableMapper):
                 {'search': 'marital', 'key': 'marital_status'},
                 {'search': 'department', 'key': 'department'},
                 {'search': 'missed (session){0,1}', 'key': 'missed_sessions'},
+                {'search': 'graduate', 'key': 'graduate'},
                 {'search': 'delete', 'key': 'delete'},
             ],)
 
@@ -28,21 +29,12 @@ class StudentList(TableMapper):
             for i in range(len(ms)):
                 ms[i] = int(ms[i].split('/')[1])
             row['annotation']['missed_sessions'] = ms
+        if str(row.get('graduate')).lower() == 'true':
+            row['annotation']['graduate'] = 'YES'
+        if str(row.get('graduate')).lower() == 'false':
+            row['annotation']['graduate'] = 'NO'
         # TODO tests and sanitize (mat number, score), yada yada yada!
         return True
     
     def get_students(self):
         return self.get_data()
-
-if __name__ == '__main__':
-    # Run a test using sample master sheet
-    root = ''
-    if __file__ != None:
-        root = re.sub('/[^/]+$', '/', __file__.replace('\\', '/')) + '../'
-
-    lister = StudentList(root + 'static/excel/ENG301.1.xlsx')
-    results = lister.get_students()
-    batch = lister.batchId
-
-    for data in results:
-        print(data)

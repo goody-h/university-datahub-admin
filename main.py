@@ -1,3 +1,4 @@
+from json.encoder import JSONEncoder
 import re, sys, math, os
 
 os.environ['QT_AUTO_SCREEN_SCALE_FACTOR'] = '1'
@@ -702,13 +703,15 @@ class Worker(QObject):
                         student = {
                             'first_name': _user.first_name, 'last_name': _user.last_name,
                             'other_names': _user.other_names, 'state': _user.state,
-                            'mat_no': _user.mat_no, 'sex': _user.sex,
+                            'mat_no': _user.mat_no, 'sex': _user.sex, 'graduate': 'NO',
                             'marital_status': _user.marital_status, 'department': _user.department
                         }
                         if str(_user.annotation).startswith('{'):
                             ant = JSONDecoder().decode(str(_user.annotation))
                             if ant.get('missed_sessions') != None:
                                 student['missed_sessions'] = ant.get('missed_sessions')
+                            if ant.get('graduate') != None:
+                                student['graduate'] = ant.get('graduate')
                     department = None
                     if student['department'] == None or student['department'] == '':
                         if _department == None:
@@ -974,23 +977,40 @@ class Worker(QObject):
         self.table_upload(
             key = lambda data: 'mat_no',
             mapper = lambda file: StudentList(file),
-            object = lambda data, delete: Student(
-                batchId = data['batchId'],
-                mat_no = data['mat_no'],
-                state = data['state'],
-                sex = data['sex'],
-                marital_status = data['marital_status'],
-                department = data['department'],
-                annotation = data['annotation'],
-                last_name = data['last_name'],
-                first_name = data['first_name'],
-                other_names = data['other_names'],
-                status = "UP" if not delete else "DELETE",
-            ),
+            object = self.get_bio_object,
             delete = lambda data, session, stager: session.query(Student)
                 .filter(Student.mat_no == data['mat_no']).delete(),
             get = lambda data, session, stager: session.query(Student).filter(Student.mat_no == data['mat_no']).first()
         )
+
+    def get_bio_object(self, data, delete):
+        old = self.session.query(Student).filter(Student.mat_no == data['mat_no']).first()
+        annotation = data['annotation']
+        if old != None:
+            if str(old.annotation).startswith('{'):
+                annotation = JSONDecoder().decode(str(old.annotation))
+            else:
+                annotation = {}
+            annotation.update(JSONDecoder().decode(str(data['annotation'])))
+            annotation = JSONEncoder().encode(annotation)
+            data['annotation'] = annotation
+
+        def null_or(arg1, arg2):
+            return arg1 if arg1 != None else arg2
+
+        return Student(
+                batchId = data['batchId'],
+                mat_no = data['mat_no'],
+                state = null_or(data.get('state'), None if old == None else old.state),
+                sex = null_or(data.get('sex'), None if old == None else old.sex),
+                marital_status = null_or(data.get('marital_status'), None if old == None else old.marital_status),
+                department = null_or(data.get('department'), None if old == None else old.department),
+                annotation = annotation,
+                last_name = null_or(data.get('last_name'), None if old == None else old.last_name),
+                first_name = null_or(data.get('first_name'), None if old == None else old.first_name),
+                other_names = null_or(data.get('other_names'), None if old == None else old.other_names),
+                status = "UP" if not delete else "DELETE",
+            )
         
     def upload_handler(self):
         self.session = self.Session()

@@ -3,10 +3,6 @@ from openpyxl.styles.fonts import Font
 import re
 from services.storage import Storage
 
-_sheetMap = {
-    'session': 'Q5', 'dept': 'A3', 'faculty': 'A2'
-}
-
 class SummarySheet(object):
     def __init__(self):
         super().__init__()
@@ -78,10 +74,13 @@ class SummarySheet(object):
                 if re.match('(review|carryover)', str(ws.cell(top - 1, c).value).lower()) == None:
                     ws.cell(i + top, c).value = ws.cell(top, c).value
 
-            for c in range(1, 10 + (2 * self.department.levels)):
+            for c in range(1, 12 + (2 * self.department.levels)):
                 ws.cell(i + top, c).style = ws.cell(top, c).style
             ws.cell(i + top, 6 + (2 * self.department.levels)).value = out['result']['tco']
             ws.cell(i + top, 7 + (2 * self.department.levels)).value = out.get('review')
+            ws.cell(i + top, 10 + (2 * self.department.levels)).value = out.get('user')['graduate'].upper()
+            ws.cell(i + top, 11 + (2 * self.department.levels)).value = out.get('outstanding')
+            
             i += 1
         self._create_degree_result_(results)
         try:

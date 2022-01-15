@@ -6,7 +6,8 @@ user = {
     'mat_no': 'U2015/3025000',
     'sex': 'M',
     'marital_status': 'Single',
-    'department': ''
+    'department': '',
+    'graduate': 'NO'
 }
 
 result = [
