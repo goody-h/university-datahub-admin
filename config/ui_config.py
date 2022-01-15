@@ -24,6 +24,12 @@ class UI_Config(object):
         if settings.read_only:
             self.ui.mastersheet.hide()
         else: self.ui.mastersheet.show()
+
+        if settings.allow_no_verify:
+            self.ui.vButton.show()
+        else:
+            self.ui.vButton.setChecked(True)
+            self.ui.vButton.hide()
         
         session = self.profile.pdb.Session()
         index = 0
