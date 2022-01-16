@@ -9,25 +9,19 @@ from services.crypto import CryptoManager
 from PyQt5.QtCore import QObject, pyqtSignal, QThread
 
 class Settings(object):
-    def __init__(self, name = None, data = None) -> None:
+    def __init__(self, name = None, data = {}) -> None:
         super().__init__()
+    
+        def default(value, default):
+            return value if value != None else default
         self.name = name
-        self.read_config = None
-        self.write_config= None
-        self.read_only = False
-        self.sync_rate = 30000
-        self.allow_no_verify = False
-
-        if data != None:
-            self.read_config = data.get('read_config')
-            self.write_config = data.get('write_config')
-            if data.get('read_only') != None:
-                self.read_only = data.get('read_only')
-            if data.get('sync_rate') != None:
-                self.sync_rate = data.get('sync_rate')
-            if data.get('allow_no_verify') != None:
-                self.allow_no_verify = data.get('allow_no_verify')
-                
+        self.read_config = data.get('read_config')
+        self.write_config= data.get('write_config')
+        self.read_only = default(data.get('read_only'), False)
+        self.sync_rate = default(data.get('sync_rate'), 30000)
+        self.allow_no_verify = default(data.get('allow_no_verify'), True)
+        self.fix_overflow = default(data.get('fix_overflow'), True)
+    
     def is_remote_read(self):
         return self.read_config != None and self.write_config == None
 
@@ -50,11 +44,13 @@ class Settings(object):
         set.read_only = self.read_only
         set.sync_rate = self.sync_rate
         set.allow_no_verify = set.allow_no_verify
+        set.fix_overflow = set.fix_overflow
         return set
 
     def equal(self, settings):
         return (self.name == settings.name and self.read_config == settings.read_config and self.write_config == settings.write_config
-            and self.read_only == settings.read_only and self.sync_rate == settings.sync_rate and self.allow_no_verify == settings.allow_no_verify)
+            and self.read_only == settings.read_only and self.sync_rate == settings.sync_rate and self.allow_no_verify == settings.allow_no_verify
+            and self.fix_overflow == settings.fix_overflow)
 
     def is_write_encrypted(self):
         return str(self.write_config).startswith('[REDACTED]')
@@ -65,7 +61,8 @@ class Settings(object):
             crypto.get_public_key()
             write = '[REDACTED]' + crypto.encrypt_with_key(self.write_config)
             
-        return {'read_config': self.read_config, 'write_config': write, 'read_only': self.read_only, 'sync_rate': self.sync_rate, 'allow_no_verify': self.allow_no_verify}
+        return {'read_config': self.read_config, 'write_config': write, 'read_only': self.read_only, 'sync_rate': self.sync_rate,
+            'allow_no_verify': self.allow_no_verify, 'fix_overflow': self.fix_overflow}
 
     def save1(self, settings, local_db: Db_Base):
         if settings.read_config == None and settings.write_config != None:

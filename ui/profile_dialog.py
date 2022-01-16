@@ -41,6 +41,7 @@ class ProfileDialog(QDialog):
         self.writeWidget.setLayout(hlayout)
         self.modeCheck = QCheckBox()
         self.verifyCheck = QCheckBox()
+        self.fixOverflow = QCheckBox()
         self.syncSpinBar = QSpinBox()
         self.syncSpinBar.setFixedWidth(83)
         self.syncSpinBar.setRange(0, 3600)
@@ -162,6 +163,7 @@ class ProfileDialog(QDialog):
         write = self.get_text(self.writeLineEdit)
         read_only = self.modeCheck.isChecked()
         no_verify = self.verifyCheck.isChecked()
+        overflow = self.fixOverflow.isChecked()
         sync = self.syncSpinBar.value() * 1000
 
         old = Settings()
@@ -178,6 +180,7 @@ class ProfileDialog(QDialog):
         new.read_only = read_only
         new.allow_no_verify = no_verify
         new.sync_rate = sync
+        new.fix_overflow = overflow
 
 
         if not old.equal(new):
@@ -197,6 +200,7 @@ class ProfileDialog(QDialog):
         layout.addRow(QLabel("Write Config"), self.writeWidget)
         layout.addRow(QLabel("Read only"), self.modeCheck)
         layout.addRow(QLabel("Allow No-verify"), self.verifyCheck)
+        layout.addRow(QLabel("Fix Session Overflow"), self.fixOverflow)
         layout.addRow(QLabel("Sync Rate (sec)"), self.syncSpinBar)
         self.formGroupBox.setLayout(layout)
 
@@ -218,6 +222,7 @@ class ProfileDialog(QDialog):
         self.readLineEdit.setText(self.settings.read_config)
         self.modeCheck.setChecked(self.settings.read_only)
         self.verifyCheck.setChecked(self.settings.allow_no_verify)
+        self.fixOverflow.setChecked(self.settings.fix_overflow)
         self.syncSpinBar.setValue(math.floor(self.settings.sync_rate / 1000))
         if self.settings.is_write_encrypted():
             self.show_write_show()

@@ -197,6 +197,13 @@ class _Level(object):
                         ws.cell(i + top, c).style = ws.cell(top, c).style
                     for c in range(5, 8):
                         ws.cell(i + top, c).value = ws.cell(top, c).value
+                    
+                    if result.get('comment') == None:
+                        result['comment'] = ''
+                    if result.get('_comment') == None:
+                        result['_comment'] = ''
+                    result['comment'] += result['_comment']
+                
                     if result.get('comment') != '' and result.get('comment') != None:
                         ws.cell(i + top, 4).comment = Comment('Review:\n' + result.get('comment'), 'Auto', width=300)
                 
@@ -275,24 +282,58 @@ class HeadFilter(ResultFilter):
         self.cache.update({'electives': {}})
 
 class CourseFilter(ResultFilter):
-    def __init__(self, cache, courses, department, wb, missed_sessions):
+    def __init__(self, cache, courses, wb):
         super().__init__(cache)
-        self.courses = courses
-        self.department = department
-        self.wb = wb
-        self.missed_sessions = missed_sessions
         self.reject = []
-
-    def reset_filter(self):
-        self.data.update({ 'sessions': {}, 'last_sem': 100})
+        self.courses = courses
+        self.wb = wb
 
     def _evaluate_result(self, result):
         result.update({'_session': result['session'], 'comment': '', 'flags': [], 'reason': ''})
+        if result.get('_comment') == None:
+            result['_comment'] = ''
         course = self.courses.get(result['courseCode'])
         if course == None:
             self.reject.append(result)
             return False
         result.update(course)
+        return super()._evaluate_result(result)
+
+    def release_hold(self):
+        if self.wb != None:
+            unknown = _Level(None, None, None, None, None)
+            unknown.commit_extra(self.reject, self.wb)
+        return super().release_hold()
+
+class OverflowFilter(ResultFilter):
+    def __init__(self, cache, department, courses, user):
+        super().__init__(cache)
+        self.min_level = int(department.levels)
+        self.min_session = int(re.split('U(\d{4})/.*$', user['mat_no'])[1]) + 1
+        for course in courses.values():
+            l = int(course['level'] / 100)
+            self.min_level = min(self.min_level, l)
+            if l == 1: break
+
+    def _evaluate_result(self, result):
+        level_session = self.min_session - self.min_level + int(result['level']/100)
+        if result['session'] < level_session:
+            old = result['session']
+            result['session'] = level_session
+            result['_session'] = level_session
+            result['_comment'] += '[Academic session was corrected from {}/{} to {}/{}]\n'.format(old - 1, old, level_session -1, level_session)
+        return super()._evaluate_result(result)
+
+class SessionFilter(ResultFilter):
+    def __init__(self, cache, department, missed_sessions):
+        super().__init__(cache)
+        self.department = department
+        self.missed_sessions = missed_sessions
+
+    def reset_filter(self):
+        self.data.update({ 'sessions': {}, 'last_sem': 100})
+
+    def _evaluate_result(self, result):
         # if self.cache['last_sem'] == 100:
         l_session = self.data['sessions'].get(result['session'])
         if l_session == None:
@@ -305,17 +346,15 @@ class CourseFilter(ResultFilter):
         if sem_id > self.data['last_sem']:
             self.data['last_sem'] = sem_id
         self.hold.append(result)
+
         return False
 
     def release_hold(self):
         # if self.cache['last_sem'] == 100:
         self.cache.update(session_utils.rectify(self.data['sessions'], self.department.levels, self.department.semesters, self.missed_sessions))
-        if self.wb != None:
-            unknown = _Level(None, None, None, None, None)
-            unknown.commit_extra(self.reject, self.wb)
         return super().release_hold()
 
-class SessionFilter(ResultFilter):
+class MaxSessionFilter(ResultFilter):
     def _evaluate_result(self, result):
         if self.cache['sessions'].count(result['session']) == 0:
             last_sess = max(self.cache['sessions'])
@@ -545,8 +584,9 @@ class SpreadSheet(object):
         
         cache = {}
         levels = {}
-        course_filter = CourseFilter(cache, courses, department, self._wb, user.get('missed_sessions'))
-        session_filter = SessionFilter(cache)
+        course_filter = CourseFilter(cache, courses, self._wb)
+        session_filter = SessionFilter(cache, department, user.get('missed_sessions'))
+        max_session_filter = MaxSessionFilter(cache)
         carryover_filter = CarryoverFilter(cache)
         retake_filter1 = RetakeFilter(cache, flag_only= True)
         retake_filter2 = RetakeFilter(cache)
@@ -554,13 +594,20 @@ class SpreadSheet(object):
         level_filter = LevelFilter(cache, levels, self._wb, department, user)
         miss_filter = MissingFilter(cache, levels, courses)
         stop = StopFilter(cache, levels, self._wb)
-        self.evaluate([
-            HeadFilter(cache, results),
-            course_filter, SignatureFilter(cache), session_filter, carryover_filter, retake_filter1, level_filter,
+        filters = [HeadFilter(cache, results), course_filter]
+
+        if user.get('fix_overflow') == True:
+            overflow_filter = OverflowFilter(cache, department, courses, user)
+            filters.append(overflow_filter)
+            
+        filters.extend([
+            session_filter, SignatureFilter(cache), max_session_filter, carryover_filter, retake_filter1, level_filter,
             HeadFilter(cache),
-            course_filter, carryover_filter, retake_filter2, elect_filter, level_filter, miss_filter,
+            course_filter, session_filter, carryover_filter, retake_filter2, elect_filter, level_filter, miss_filter,
             stop
         ])
+
+        self.evaluate(filters)
          
         self.scored_results = results
         self.invalid_results = []

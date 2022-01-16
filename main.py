@@ -651,6 +651,7 @@ class Worker(QObject):
         gensh = self.app.shButton.isChecked()
         gensm = self.app.smButton.isChecked()
         verify = self.app.vButton.isChecked()
+        fix_overflow = self.app.profile_handler.settings.fix_overflow
 
         operations = [gensh, gensm]
         
@@ -731,6 +732,8 @@ class Worker(QObject):
                             continue
 
                     student['department'] = department.code
+
+                    student.update({'fix_overflow': fix_overflow})
                     if _department == None or department.levels > _department.levels:
                         _department = department
                     _courses = self.session.query(Course).filter(Course.department == department.code).all()
