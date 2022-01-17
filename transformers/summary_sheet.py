@@ -1,5 +1,6 @@
 from openpyxl import load_workbook
 from openpyxl.styles.fonts import Font
+from openpyxl.comments import Comment
 import re
 from services.storage import Storage
 
@@ -78,6 +79,10 @@ class SummarySheet(object):
                 ws.cell(i + top, c).style = ws.cell(top, c).style
             ws.cell(i + top, 6 + (2 * self.department.levels)).value = out['result']['tco']
             ws.cell(i + top, 7 + (2 * self.department.levels)).value = out.get('review')
+
+            if out.get('review_flags') != '' and out.get('review_flags') != None:
+                ws.cell(i + top, 7 + (2 * self.department.levels)).comment = Comment('Tags:\n' + out.get('review_flags'), 'Auto', width=300)
+
             ws.cell(i + top, 10 + (2 * self.department.levels)).value = out.get('user')['graduate'].upper()
             ws.cell(i + top, 11 + (2 * self.department.levels)).value = out.get('outstanding')
             

@@ -51,8 +51,10 @@ class _Level(object):
         self.result_map = {}
         self.props = []
         self.reject = []
+        self.review_flags = []
         if shared_data != None:
             self.reject = shared_data.cache['reject']
+            self.review_flags = shared_data.cache['review_flags']
 
     def evaluate_results(self):
         results = []
@@ -65,6 +67,7 @@ class _Level(object):
                 # Current policy Flag comment them
                 if tcu > self.department.max_cu:
                     self.shared_data.cache['review'] = True
+                    self.shared_data.cache['review_flags'].append('max-cu')
                     result['comment'] += 'flag* [ Maximum credit load exceeded ]\n'
             results.extend(sem)
         return results
@@ -86,6 +89,7 @@ class _Level(object):
                 for res in self.results[semester - 1]:
                     res['reason'] += '[No extra courses allowed in this session] \n'
                     self.result_map[res['courseCode']] = None
+                    self.review_flags.append('no-extra')
                 self.reject.extend(self.results[semester - 1])
                 self.results[semester - 1].clear()
 
@@ -98,6 +102,7 @@ class _Level(object):
             else:
                 result['reason'] += '[No extra courses allowed in this session] \n'
                 self.reject.append(result)
+                self.review_flags.append('no-extra')
     
     def commit_extra(self, results, wb, tag = 'unknown'):
         b = 'Unknown Courses'
@@ -130,7 +135,16 @@ class _Level(object):
                 ws['D' + str(i + top)] = result.get('score')
                 ws['F' + str(i + top)] = str(result.get('session') - 1) + '/' + str(result.get('session'))
                 ws['G' + str(i + top)] = result.get('reason').rstrip(' \n')
-                
+
+                if result.get('comment') == None:
+                    result['comment'] = ''
+                if result.get('_comment') == None:
+                    result['_comment'] = ''
+                result['comment'] += result['_comment']
+            
+                if result.get('comment') != '' and result.get('comment') != None:
+                    ws.cell(i + top, 4).comment = Comment('Review:\n' + result.get('comment'), 'Auto', width=300)
+
                 for c in range(1, 8):
                     ws.cell(i + top, c).style = ws.cell(top, c).style
                 for c in range(5, 6):
@@ -251,7 +265,7 @@ class _Level(object):
 class ResultFilter():
     def __init__(self, cache):
         if cache.get('sessions') == None:
-            cache.update({'sessions': [], 'last_sem': 100, 'electives': {}, 'reject': [], 'outstanding': [], 'review': False})
+            cache.update({'sessions': [], 'last_sem': 100, 'electives': {}, 'reject': [], 'outstanding': [], 'review': False, 'review_flags': []})
         self.hold = []
         self.cache = cache
         self.reject = cache['reject']
@@ -289,7 +303,7 @@ class CourseFilter(ResultFilter):
         self.wb = wb
 
     def _evaluate_result(self, result):
-        result.update({'_session': result['session'], 'comment': '', 'flags': [], 'reason': ''})
+        result.update({'_session': result['session'], 'comment': '', 'flags': [], 'reason': '', 'priority': 0})
         if result.get('_comment') == None:
             result['_comment'] = ''
         course = self.courses.get(result['courseCode'])
@@ -306,22 +320,27 @@ class CourseFilter(ResultFilter):
         return super().release_hold()
 
 class OverflowFilter(ResultFilter):
-    def __init__(self, cache, department, courses, user):
+    def __init__(self, cache, dept, courses, user):
         super().__init__(cache)
-        self.min_level = int(department.levels)
-        self.min_session = int(re.split('U(\d{4})/.*$', user['mat_no'])[1]) + 1
+        self.min_level = int(dept.levels)
+        self.min_sess = int(re.split('U(\d{4})/.*$', user['mat_no'])[1]) + 1
+        self.miss =  user.get('missed_sessions') if user.get('missed_sessions') != None else []
+        self.levels = [i for i in range(self.min_sess, self.min_sess + dept.levels + len(self.miss) + 1) if self.miss.count(i) == 0]
         for course in courses.values():
             l = int(course['level'] / 100)
             self.min_level = min(self.min_level, l)
             if l == 1: break
 
     def _evaluate_result(self, result):
-        level_session = self.min_session - self.min_level + int(result['level']/100)
-        if result['session'] < level_session:
+        level_session = self.levels[int(result['level']/100) - self.min_level]
+        if result['session'] < level_session and self.miss.count(result['session']) == 0:
             old = result['session']
+            result['priority'] = 10
             result['session'] = level_session
             result['_session'] = level_session
-            result['_comment'] += '[Academic session was corrected from {}/{} to {}/{}]\n'.format(old - 1, old, level_session -1, level_session)
+            result['_comment'] += 'flag* [Academic session was corrected from {}/{} to {}/{}]\n'.format(old - 1, old, level_session -1, level_session)
+            self.cache['review'] = True
+            self.cache['review_flags'].append('wrong-session')
         return super()._evaluate_result(result)
 
 class SessionFilter(ResultFilter):
@@ -334,7 +353,6 @@ class SessionFilter(ResultFilter):
         self.data.update({ 'sessions': {}, 'last_sem': 100})
 
     def _evaluate_result(self, result):
-        # if self.cache['last_sem'] == 100:
         l_session = self.data['sessions'].get(result['session'])
         if l_session == None:
             l_session = 100
@@ -346,11 +364,9 @@ class SessionFilter(ResultFilter):
         if sem_id > self.data['last_sem']:
             self.data['last_sem'] = sem_id
         self.hold.append(result)
-
         return False
 
     def release_hold(self):
-        # if self.cache['last_sem'] == 100:
         self.cache.update(session_utils.rectify(self.data['sessions'], self.department.levels, self.department.semesters, self.missed_sessions))
         return super().release_hold()
 
@@ -360,8 +376,10 @@ class MaxSessionFilter(ResultFilter):
             last_sess = max(self.cache['sessions'])
             if result['session'] > last_sess:
                 result['reason'] += '[Maximum academic sessions exceeded] \n'
+                self.cache['review_flags'].append('max-session')
             else:
                 result['reason'] += '[This is a missed academic session] \n'
+                self.cache['review_flags'].append('missed-session')
             self.reject.append(result)
             return False
         return super()._evaluate_result(result)
@@ -370,10 +388,10 @@ class SignatureFilter(ResultFilter):
     def _evaluate_result(self, result):
         if result.get('verified') == False:
             result['reason'] += '[This result failed signature verification] \n'
+            self.cache['review_flags'].append('invalid-signature')
             self.reject.append(result)
             return False
         return super()._evaluate_result(result)
-
 
 class CarryoverFilter(ResultFilter):
     def reset_filter(self):
@@ -397,6 +415,34 @@ class CarryoverFilter(ResultFilter):
             self.data[result['courseCode']] = result
         return super()._evaluate_result(result)
 
+class DuplicateFilter(ResultFilter):
+    def reset_filter(self):
+        if self.cache.get('result_map') == None:
+            self.cache['result_map'] = {}
+        self.data = self.cache.get('result_map')
+
+    def _evaluate_result(self, result):
+        map = self.data.get(result['courseCode'])
+        if map != None and  result['session'] == map['session'] and result != map:
+            if map['priority'] < result['priority']:
+                self.data[result['courseCode']]['_comment'] = (map['_comment'] + 'flag* [ Duplicate session | session: ' + str(result['session'] - 1) + '/' 
+                    + str(result['session']) + ', score: ' + str(result['score']) + ']\n')
+                result['reason'] += '[Duplicate session {}/{}] \n'.format(map['session'] - 1, map['session'])
+                self.reject.append(result)
+            else:
+                self.data[result['courseCode']] = result
+                self.data[result['courseCode']]['_comment'] = (result['_comment'] + 'flag* [ Duplicate session | session: ' + str(map['session'] - 1) + '/' 
+                    + str(map['session']) + ', score: ' + str(map['score']) + ']\n')
+                map['reason'] += '[Duplicate session {}/{}] \n'.format(map['session'] - 1, map['session'])
+                self.reject.append(map)
+            self.cache['review_flags'].append('duplicate-result')
+        return False
+
+    def release_hold(self):
+        self.hold = self.data.values()
+        return super().release_hold()
+
+
 class RetakeFilter(ResultFilter):
     def __init__(self, cache, flag_only = False):
         super().__init__(cache)
@@ -415,6 +461,7 @@ class RetakeFilter(ResultFilter):
             result['reason'] += '[Course has already been passed in session {}/{}] \n'.format(map['session'] - 1, map['session'])
             if not self.flag_only:
                 self.reject.append(result)
+                self.cache['review_flags'].append('retake')
                 return False
         return super()._evaluate_result(result)
 
@@ -445,6 +492,7 @@ class ElectiveFilter(ResultFilter):
             if len(all) > elective_pair:
                 cache['review'] = True
                 result['comment'] += 'flag* [ Excess electives taken{} ]\n'.format(all)
+                cache['review_flags'].append('excess-electives')
         return super().release_hold()
 
 class LevelFilter(ResultFilter):
@@ -588,6 +636,7 @@ class SpreadSheet(object):
         session_filter = SessionFilter(cache, department, user.get('missed_sessions'))
         max_session_filter = MaxSessionFilter(cache)
         carryover_filter = CarryoverFilter(cache)
+        duplicate_filter = DuplicateFilter(cache)
         retake_filter1 = RetakeFilter(cache, flag_only= True)
         retake_filter2 = RetakeFilter(cache)
         elect_filter = ElectiveFilter(cache)
@@ -601,7 +650,7 @@ class SpreadSheet(object):
             filters.append(overflow_filter)
             
         filters.extend([
-            session_filter, SignatureFilter(cache), max_session_filter, carryover_filter, retake_filter1, level_filter,
+            session_filter, SignatureFilter(cache), max_session_filter, carryover_filter, duplicate_filter, retake_filter1, level_filter,
             HeadFilter(cache),
             course_filter, session_filter, carryover_filter, retake_filter2, elect_filter, level_filter, miss_filter,
             stop
@@ -615,13 +664,22 @@ class SpreadSheet(object):
         self.invalid_results.extend(cache['reject'])
         review = 'NO'
         if len(self.invalid_results) > 0 or cache['review']:
+            if len(course_filter.reject) > 0:
+                cache['review_flags'].append('unknown-course')
             review = 'YES'
 
+        review_flags = ''
+        for f in set(cache['review_flags']):
+            review_flags += f + ', '
+        
         outstanding = ''
         for c in stop.outstanding:
             outstanding += c['code'] + ', '
         
-        response = {'status': 'success', 'message': '', 'level_data': levels, 'user': user, 'review': review, 'outstanding': outstanding.removesuffix(', ')}
+        response = {
+            'status': 'success', 'message': '', 'level_data': levels, 'user': user, 'review': review,
+            'outstanding': outstanding.removesuffix(', '), 'review_flags': review_flags.removesuffix(', ')
+        }
         print('Written {} results'.format(len(self.scored_results)))
 
         # step 4: remove unused sheets
