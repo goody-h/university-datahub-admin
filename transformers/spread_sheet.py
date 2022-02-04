@@ -409,10 +409,14 @@ class CarryoverFilter(ResultFilter):
                 result['flags'].append('carryover')
                 map['_cu'] = map.get('cu')
                 map['cu'] = None
+                self.data[map['courseCode'] + '_' + str(map['session'])] = map
             elif result['level'] / 100 != self.cache['sessions'].index(result['session']) + 1:
                 result['_session'] = result['session'] + 0.2
 
             self.data[result['courseCode']] = result
+        elif map != None:
+            self.data[result['courseCode'] + '_' + str(result['session'])] = result
+
         return super()._evaluate_result(result)
 
 class DuplicateFilter(ResultFilter):
