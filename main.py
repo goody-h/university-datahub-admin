@@ -713,6 +713,8 @@ class Worker(QObject):
                                 student['missed_sessions'] = ant.get('missed_sessions')
                             if ant.get('graduate') != None:
                                 student['graduate'] = ant.get('graduate')
+                            if ant.get('waiver') != None:
+                                student['waiver'] = ant.get('waiver')
                     department = None
                     if student['department'] == None or student['department'] == '':
                         if _department == None:
@@ -1002,20 +1004,20 @@ class Worker(QObject):
             annotation = JSONEncoder().encode(annotation)
             data['annotation'] = annotation
 
-        def null_or(arg1, arg2):
-            return arg1 if arg1 != None else arg2
+        def null_or(key, arg2):
+            return data.get(key) if key in data.keys() else arg2
 
         return Student(
                 batchId = data['batchId'],
                 mat_no = data['mat_no'],
-                state = null_or(data.get('state'), None if old == None else old.state),
-                sex = null_or(data.get('sex'), None if old == None else old.sex),
-                marital_status = null_or(data.get('marital_status'), None if old == None else old.marital_status),
-                department = null_or(data.get('department'), None if old == None else old.department),
+                state = null_or('state', None if old == None else old.state),
+                sex = null_or('sex', None if old == None else old.sex),
+                marital_status = null_or('marital_status', None if old == None else old.marital_status),
+                department = null_or('department', None if old == None else old.department),
                 annotation = annotation,
-                last_name = null_or(data.get('last_name'), None if old == None else old.last_name),
-                first_name = null_or(data.get('first_name'), None if old == None else old.first_name),
-                other_names = null_or(data.get('other_names'), None if old == None else old.other_names),
+                last_name = null_or('last_name', None if old == None else old.last_name),
+                first_name = null_or('first_name', None if old == None else old.first_name),
+                other_names = null_or('other_names', None if old == None else old.other_names),
                 status = "UP" if not delete else "DELETE",
             )
         

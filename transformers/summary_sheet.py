@@ -84,7 +84,8 @@ class SummarySheet(object):
                 ws.cell(i + top, 7 + (2 * self.department.levels)).comment = Comment('Tags:\n' + out.get('review_flags'), 'Auto', width=300)
 
             ws.cell(i + top, 10 + (2 * self.department.levels)).value = out.get('user')['graduate'].upper()
-            ws.cell(i + top, 11 + (2 * self.department.levels)).value = out.get('outstanding')
+            ws.cell(i + top, 11 + (2 * self.department.levels)).value = out.get('waiver')
+            ws.cell(i + top, 12 + (2 * self.department.levels)).value = out.get('outstanding')
             
             if out.get('file') != None:
                 ws.cell(i + top, 2).hyperlink = out.get('file')

@@ -16,24 +16,44 @@ class StudentList(TableMapper):
                 {'search': 'state', 'key': 'state'},
                 {'search': 'marital', 'key': 'marital_status'},
                 {'search': 'department', 'key': 'department'},
-                {'search': 'missed (session){0,1}', 'key': 'missed_sessions'},
+                {'search': '(missed (session){0,1}|defer)', 'key': 'missed_sessions'},
                 {'search': 'graduate', 'key': 'graduate'},
+                {'search': 'waive(r){0,1}', 'key': 'waiver'},
                 {'search': 'delete', 'key': 'delete'},
             ],)
 
     def __modify_row__(self, row):
         row.update({'mat_no': row['mat_no'].upper()})
-        if re.match('^\s*,{0,1}\s*\d{4}/\d{4}(\s*,\s*\d{4}/\d{4})*\s*,{0,1}\s*$', str(row.get('missed_sessions'))) != None:
+
+        def re_list_pattern(base):
+            return '^\s*,{0,1}\s*' + base + '(\s*,\s*' + base + ')*\s*,{0,1}\s*$'
+        if re.match(re_list_pattern('\d{4}/\d{4}'), str(row.get('missed_sessions'))) != None:
             ms = row.get('missed_sessions').strip().strip(',').strip()
             ms = re.split('\s*,\s*', ms)
             for i in range(len(ms)):
                 ms[i] = int(ms[i].split('/')[1])
             row['annotation']['missed_sessions'] = ms
+        elif 'missed_sessions' in row.keys():
+            row['annotation']['missed_sessions'] = None
+            
+        if re.match(re_list_pattern('[A-z]{3}(\s|_){0,1}\d{3}\.\d'), str(row.get('waiver'))) != None:
+            ms = row.get('waiver').strip().strip(',').strip()
+            ms = re.split('\s*,\s*', ms)
+            for i in range(len(ms)):
+                c1 = ms[i].replace('_', '').replace(' ', '').lower()
+                c2 = re.split('([a-z]{3})(\d{3})\.(\d)', c1)
+                ms[i] = c2[1] + '_' + c2[2] + '_' + c2[3]
+            row['annotation']['waiver'] = ms
+        elif 'waiver' in row.keys():
+            row['annotation']['waiver'] = None
+
         if str(row.get('graduate')).lower() == 'true':
             row['annotation']['graduate'] = 'YES'
-        if str(row.get('graduate')).lower() == 'false':
+        elif str(row.get('graduate')).lower() == 'false':
             row['annotation']['graduate'] = 'NO'
-        # TODO tests and sanitize (mat number, score), yada yada yada!
+        elif 'graduate' in row.keys():
+            row['annotation']['graduate'] = None
+
         return True
     
     def get_students(self):

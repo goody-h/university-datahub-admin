@@ -36,6 +36,7 @@ class _Level(object):
         self.tqp = 0
         self.tcu = 0
         self.tco = []
+        self.waive = []
 
         ws = None
         self.tables = None
@@ -155,6 +156,7 @@ class _Level(object):
         tqp = 0
         tcu = 0
         tco = []
+        waive = []
 
         self.tables = []
         refs = []
@@ -201,6 +203,23 @@ class _Level(object):
             for result in self.results[c]:
                 score = result.get('score')
                 unit = result['cu']
+                
+                if unit != None and score != None:
+                    scorer = [39.9999, 44.9999, 49.9999, 59.9999, 69.9999, score]
+                    scorer.sort()
+                    gp = scorer.index(score)
+                    if result['flags'].count('carryover') > 0:
+                        gp = min(3, gp)
+                    if score < 40:
+                        if result['flags'].count('waiver') == 0:
+                            result['_out'] = 0
+                            tco.append(result)
+                        else:
+                            waive.append(result)
+                            result['title'] += '      [W]'
+                    tcu += unit
+                    tqp += gp * unit
+                
                 if self.ws != None:
                     top = refs[result['sem'] - 1]
                     ws['A' + str(i + top)] = result['code']
@@ -221,22 +240,12 @@ class _Level(object):
                     if result.get('comment') != '' and result.get('comment') != None:
                         ws.cell(i + top, 4).comment = Comment('Review:\n' + result.get('comment'), 'Auto', width=300)
                 
-                if unit != None and score != None:
-                    scorer = [39.9999, 44.9999, 49.9999, 59.9999, 69.9999, score]
-                    scorer.sort()
-                    gp = scorer.index(score)
-                    if result['flags'].count('carryover') > 0:
-                        gp = min(3, gp)
-                    if score < 40:
-                        result['_out'] = 0
-                        tco.append(result)
-                    tcu += unit
-                    tqp += gp * unit
                 i += 1
 
         self.tqp = tqp
         self.tcu = tcu
         self.tco = tco
+        self.waive = waive
 
         if self.is_lead:
             if self.level > self.shared_data.lead_level:
@@ -469,6 +478,22 @@ class RetakeFilter(ResultFilter):
                 return False
         return super()._evaluate_result(result)
 
+class WaiverFilter(ResultFilter):
+    def __init__(self, cache, waivers):
+        super().__init__(cache)
+        self.waivers = waivers
+
+    def reset_filter(self):
+        if self.cache.get('result_map') == None:
+            self.cache['result_map'] = {}
+        self.data = self.cache.get('result_map')
+
+    def release_hold(self):
+        if self.waivers != None and len(self.waivers) > 0:
+            for waiver in self.waivers:
+                map = self.data.get(waiver)
+                map['flags'].append('waiver')
+        return super().release_hold()
 
 class ElectiveFilter(ResultFilter):
     def _evaluate_result(self, result):
@@ -587,6 +612,7 @@ class StopFilter(ResultFilter):
         super().__init__(cache)
         self.levels = levels
         self.wb = wb
+        self.waivers = []
 
     def release_hold(self):
         for level in self.levels.values():
@@ -594,6 +620,7 @@ class StopFilter(ResultFilter):
         for level in self.levels.values():
             level.finish()
             self.outstanding.extend(level.tco)
+            self.waivers.extend(level.waive)
             self.levels[level.level] = {'tco': len(level.tco), 'tcu': level.tcu, 'tqp': level.tqp, 'session': level.session }
         if self.wb != None:
             unknown = _Level(None, None, None, None, None)
@@ -643,6 +670,7 @@ class SpreadSheet(object):
         duplicate_filter = DuplicateFilter(cache)
         retake_filter1 = RetakeFilter(cache, flag_only= True)
         retake_filter2 = RetakeFilter(cache)
+        waiver_filter = WaiverFilter(cache, user.get('waiver'))
         elect_filter = ElectiveFilter(cache)
         level_filter = LevelFilter(cache, levels, self._wb, department, user)
         miss_filter = MissingFilter(cache, levels, courses)
@@ -656,7 +684,7 @@ class SpreadSheet(object):
         filters.extend([
             session_filter, SignatureFilter(cache), max_session_filter, carryover_filter, duplicate_filter, retake_filter1, level_filter,
             HeadFilter(cache),
-            course_filter, session_filter, carryover_filter, retake_filter2, elect_filter, level_filter, miss_filter,
+            course_filter, session_filter, carryover_filter, retake_filter2, waiver_filter, elect_filter, level_filter, miss_filter,
             stop
         ])
 
@@ -679,10 +707,15 @@ class SpreadSheet(object):
         outstanding = ''
         for c in stop.outstanding:
             outstanding += c['code'] + ', '
+
+        waiver = ''
+        for w in stop.waivers:
+            waiver += w['code'] + ', '
         
         response = {
             'status': 'success', 'message': '', 'level_data': levels, 'user': user, 'review': review,
-            'outstanding': outstanding.removesuffix(', '), 'review_flags': review_flags.removesuffix(', ')
+            'outstanding': outstanding.removesuffix(', '), 'review_flags': review_flags.removesuffix(', '),
+            'waiver': waiver.removesuffix(', '),
         }
         print('Written {} results'.format(len(self.scored_results)))
 
