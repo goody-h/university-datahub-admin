@@ -39,11 +39,12 @@ class StudentList(TableMapper):
         if re.match(re_list_pattern('[A-z]{3}(\s|_){0,1}\d{3}\.\d'), str(row.get('waiver'))) != None:
             ms = row.get('waiver').strip().strip(',').strip()
             ms = re.split('\s*,\s*', ms)
-            for i in range(len(ms)):
-                c1 = ms[i].replace('_', '').replace(' ', '').lower()
-                c2 = re.split('([a-z]{3})(\d{3})\.(\d)', c1)
-                ms[i] = c2[1] + '_' + c2[2] + '_' + c2[3]
-            row['annotation']['waiver'] = ms
+            if len(ms) < 3:
+                for i in range(len(ms)):
+                    c1 = ms[i].replace('_', '').replace(' ', '').lower()
+                    c2 = re.split('([a-z]{3})(\d{3})\.(\d)', c1)
+                    ms[i] = c2[1] + '_' + c2[2] + '_' + c2[3]
+                row['annotation']['waiver'] = ms
         elif 'waiver' in row.keys():
             row['annotation']['waiver'] = None
 
