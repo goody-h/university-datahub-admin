@@ -73,3 +73,6 @@ Data storage:
 Security: RSA Cryptography, SHA256
 
 Packaging: PyInstaller – Windows
+
+## License
+This project is licensed under the Apache License Version 2.0, January 2004. Read the [license](/LICENSE) statement for more information.
